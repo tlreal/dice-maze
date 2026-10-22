@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+.DS_Store
+
+# 本地开发工具产物
+.agents/
+skills-lock.json
+screenshots/

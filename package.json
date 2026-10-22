@@ -1,0 +1,58 @@
+{
+  "name": "dice-maze",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "heybox": {
+    "miniProgramId": "01a16167-06e3-7d8d-9ebb-96aa35cf9840",
+    "name": "骰运迷城",
+    "desc": "一场十五分钟的 DnD 跑团肉鸽。掷起你的 d20，深入百年一醒的烬痕迷城——骰子知道答案。",
+    "category": "game",
+    "icon": "assets/icon.png",
+    "coverImages": [
+      "assets/cover.png"
+    ],
+    "platforms": [
+      "android",
+      "ios",
+      "ohos",
+      "windows",
+      "macos"
+    ],
+    "permissions": {
+      "userInfo": {
+        "enabled": true
+      },
+      "share": {
+        "enabled": true
+      },
+      "storage": {
+        "enabled": true
+      },
+      "leaderboard": {
+        "enabled": true
+      }
+    },
+    "window": {
+      "defaultWidth": 420,
+      "defaultHeight": 780,
+      "minWidth": 360,
+      "minHeight": 600,
+      "resizable": true
+    }
+  },
+  "scripts": {
+    "hb-sdk": "hb-sdk",
+    "dev": "hb-sdk dev",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && hb-sdk build",
+    "deploy": "hb-sdk remote deploy"
+  },
+  "dependencies": {
+    "@heybox/hb-sdk": "^0.9.2"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.0.12"
+  }
+}

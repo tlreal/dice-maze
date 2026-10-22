@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>QA Harness - 骰运迷城</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #0d0a08; }
+      iframe { width: 100%; height: 100%; border: none; display: block; }
+      #qa-bar {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+        font: 12px monospace; color: #e8b45a; background: rgba(0,0,0,.7);
+        padding: 2px 8px; pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="qa-bar" style="display:none">QA HARNESS</div>
+    <iframe id="game" src="/index.html?hb_mini_bridge_nonce=qalocal"></iframe>
+    <script>
+      // 扮演官方调试台的 parent:应答 runtime gate probe,解锁页面脚本
+      window.addEventListener('message', (e) => {
+        const d = e.data
+        if (!d || d.type !== 'request' || !e.source) return
+        document.getElementById('qa-bar').textContent =
+          'QA HARNESS · probe: ' + String(d.method) + ' ns=' + String(d.namespace)
+        if (d.method === 'runtime.gate.probe') {
+          e.source.postMessage(
+            {
+              namespace: d.namespace,
+              version: d.version,
+              nonce: d.nonce,
+              type: 'response',
+              id: d.id,
+              method: d.method,
+              payload: { ready: true },
+            },
+            '*',
+          )
+        }
+      })
+    </script>
+  </body>
+</html>
