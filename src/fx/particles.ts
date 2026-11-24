@@ -113,7 +113,7 @@ class ParticleLayer {
   }
 
   /** 飘字(DOM 实现,便于中文字体渲染) */
-  floatText(text: string, cls: string, target: 'player' | 'monster' | 'center'): void {
+  floatText(text: string, cls: string, target: 'player' | 'monster' | 'center', anchorSel?: string): void {
     if (!this.domLayer) {
       this.domLayer = document.createElement('div')
       this.domLayer.id = 'float-layer'
@@ -123,11 +123,13 @@ class ParticleLayer {
     el.className = `float-text ${cls} ${target}`
     el.textContent = text
     if (target !== 'center') {
-      const anchor = document.querySelector(target === 'player' ? '#status-bar' : '#monster-card')
-      if (anchor) {
-        const r = anchor.getBoundingClientRect()
+      // anchorSel:优先锚到指定元素(如画面区里的怪物剪影),它不可见时退回状态栏/怪物卡
+      const picked = (anchorSel && document.querySelector(anchorSel)) || document.querySelector(target === 'player' ? '#status-bar' : '#monster-card')
+      if (picked) {
+        const r = picked.getBoundingClientRect()
+        const onFig = picked !== document.querySelector('#status-bar') && picked !== document.querySelector('#monster-card')
         el.style.left = `${r.left + r.width / 2}px`
-        el.style.top = `${r.top + 24}px`
+        el.style.top = `${r.top + (onFig ? r.height * 0.34 : 24)}px`
         el.style.position = 'fixed'
       }
     }

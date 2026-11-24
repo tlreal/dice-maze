@@ -15,8 +15,17 @@
   </head>
   <body>
     <div id="qa-bar" style="display:none">QA HARNESS</div>
-    <iframe id="game" src="/index.html?hb_mini_bridge_nonce=qalocal"></iframe>
+    <iframe id="game"></iframe>
     <script>
+      // 把本页的查询参数转发给内嵌页:
+      //   qa-harness.html?scene=a1_gate&cls=mage  → 直接预览某个场景(无敌,方便对照画面与文案)
+      //   qa-harness.html?page=/art-gallery.html  → 内嵌插画总览页
+      const params = new URLSearchParams(location.search)
+      const page = params.get('page') || '/index.html'
+      params.delete('page')
+      document.getElementById('game').src =
+        page + '?hb_mini_bridge_nonce=qalocal' + (params.toString() ? '&' + params.toString() : '')
+
       // 扮演官方调试台的 parent:应答 runtime gate probe,解锁页面脚本
       window.addEventListener('message', (e) => {
         const d = e.data

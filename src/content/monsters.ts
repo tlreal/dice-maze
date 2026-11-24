@@ -7,7 +7,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
     desc: '迷城门口的看门小鬼，兵器比它本人还长。',
     hp: 9, ac: 12, attackBonus: 3, damageDice: '1d6+1', damageType: 'pierce',
     quotes: ['「吱——有活的！有活的！」', '「金币！金币是我的！」'],
-    xp: 2, gold: [3, 8],
+    // 首战即升到 Lv2(6 经验),让「升级选专长」在教学阶段就出场;奖励合计等同旧版三次伏兵战
+    xp: 6, gold: [9, 24],
     introText: '岩石后蹿出一团绿影——哥布林哨兵举着锈钉长矛，尖笑着堵住去路。',
   },
   gargoyle: {
@@ -95,6 +96,27 @@ export const MONSTERS: Record<string, MonsterDef> = {
     resistances: ['fire'],
     xp: 3, gold: [0, 0],
     introText: '地砖裂开，数条烧红的触须破土而出，抽打着空气里的记忆尘埃。',
+  },
+  emberbat: {
+    id: 'emberbat', name: '烬蝠', emoji: '🦇', act: 2,
+    desc: '洞顶倒吊的群居恶物，翼膜边缘燃着一线火星。怕会转圈的火。',
+    hp: 12, ac: 14, attackBonus: 4, damageDice: '1d4+1', damageType: 'pierce',
+    resistances: ['fire'],
+    specialChance: 0.3,
+    special: { name: '烬翼燎原', desc: '翼尖的火星甩了你一脸', damageDice: '1d4', damageType: 'fire' },
+    quotes: ['「吱——吱吱——」', '几百双火星一样的眼睛同时眨了一下。'],
+    xp: 3, gold: [0, 0],
+    introText: '洞顶的「钟乳石」齐齐张开翅膀——是烬蝠群！翼膜上的火星簌簌落下，像一场倒着下的雨。',
+  },
+  ashKnight: {
+    id: 'ashKnight', name: '烬甲近卫', emoji: '🛡️', act: 3,
+    desc: '跪在殿前长阶上的空铠甲。没有人穿着它，它却还在等长官检阅。',
+    hp: 26, ac: 15, attackBonus: 5, damageDice: '1d10+2', damageType: 'pierce',
+    vulnerabilities: ['blunt'],
+    resistances: ['fire'],
+    quotes: ['「口令。」', '「……将军……何时归来……」'],
+    xp: 8, gold: [15, 25],
+    introText: '空铠甲拔枪而立，甲缝里漏出的火一下子窜高了——烬甲近卫，百年不曾换岗。',
   },
   emberking: {
     id: 'emberking', name: '烬王', emoji: '👑', act: 3,

@@ -19,12 +19,22 @@ import {
 import { pick, randInt, rollDice, rollCheck, shuffle, rollStats, resetRollStats } from './rng'
 
 // ─── 演出事件(UI 播放) ─────────────────────────────────────────────
+/** 结算后「实际发生了什么变化」,UI 据此画结果图标(数值取结算前后的真实差值) */
+export type LootKind = 'gold' | 'hp' | 'item' | 'lost' | 'inspiration' | 'fragment' | 'xp' | 'companion' | 'resource'
+export interface LootView {
+  t: LootKind
+  v?: number
+  id?: string           // item / lost:物品 id;lost 不带 id = 烬疫吃掉了装备(想不起是什么)
+}
+
 export type GameEvent =
   | { kind: 'narration'; paras: string[]; instant?: boolean }
-  | { kind: 'sceneTitle'; title: string; act: 1 | 2 | 3; bg?: string }
+  | { kind: 'sceneTitle'; sceneId: string; title: string; act: 1 | 2 | 3; bg?: string }
   | { kind: 'title'; text: string; sub?: string }
   | { kind: 'fx'; fx: 'gold' | 'heal' | 'hurt' | 'fragment' | 'ember' }
-  | { kind: 'check'; outcome: CheckOutcome }
+  | { kind: 'check'; outcome: CheckOutcome; actor?: 'player' | 'monster' }   // actor 仅攻击掷骰带:驱动画面里的冲撞/闪避
+  | { kind: 'loot'; items: LootView[] }
+  | { kind: 'monsterDown' }
   | { kind: 'askInspiration'; label: string }
   | { kind: 'choices'; views: ChoiceView[] }
   | { kind: 'combatStart'; monster: MonsterDef; firstStrike?: boolean }
@@ -109,7 +119,7 @@ export class GameEngine {
   /** 展开当前幕的场景队列:锚点固定,槽位从随机池抽(不含本局已用) */
   private static buildActQueue(run: RunState) {
     const plan = ACT_PLANS[run.act]!
-    const pool = shuffle(plan.pool.filter((id) => !run.visited.includes(id)))
+    const pool = shuffle(plan.pool.filter((id) => !run.visited.includes(id) && GameEngine.poolAllowed(run, id)))
     const queue: string[] = []
     let pi = 0
     for (const a of plan.anchors) {
@@ -126,6 +136,12 @@ export class GameEngine {
       queue.splice(Math.max(0, insertAt), 0, fragId)
     }
     run.sceneQueue = queue
+  }
+
+  /** 随机池场景的入场条件(目前只有「需要同伴」) */
+  private static poolAllowed(run: RunState, id: string): boolean {
+    const s = SCENES[id]
+    return !s?.requireCompanion || run.player.companionBanjo
   }
 
   // ── 主流程 ──
@@ -166,7 +182,7 @@ export class GameEngine {
       run.lastRecap = scene.title ?? scene.id
       this.autosave()
       if (scene.onEnterEffects) this.applyEffects(scene.onEnterEffects)
-      yield { kind: 'sceneTitle', title: scene.title ?? '', act: run.act, bg: scene.bg }
+      yield { kind: 'sceneTitle', sceneId: scene.id, title: scene.title ?? '', act: run.act, bg: scene.bg }
       yield { kind: 'narration', paras: scene.text, instant: run.visited.filter((v) => v === scene.id).length > 1 }
       // 选择循环(同一场景可能因 flag 变化重渲染)
       while (true) {
@@ -200,11 +216,23 @@ export class GameEngine {
 
   private advanceScene() {
     const run = this.run
-    run.currentSceneId = run.sceneQueue.shift() ?? ''
+    run.currentSceneId = this.nextUnvisited()
     if (!run.currentSceneId) {
       // 队列耗尽 = 本幕内容走完 → 过幕
       this.route({ act: 'next' })
     }
+  }
+
+  /**
+   * 取队列中的下一个「本局未播放」场景。
+   * 经 goto 直达的锚点(如 a1_forge → a1_gate)仍留在队列里,轮到它们时必须跳过——
+   * 否则会被当成「下一个随机场景」整段重播(曾导致每局重播百年契约/启程,门后伏兵连打三次)。
+   */
+  private nextUnvisited(): string {
+    const run = this.run
+    let next = run.sceneQueue.shift()
+    while (next && run.visited.includes(next)) next = run.sceneQueue.shift()
+    return next ?? ''
   }
 
   /** 解析跳转目标,设置下一步 */
@@ -221,8 +249,10 @@ export class GameEngine {
     } else if ('shop' in target) {
       const shop = SHOPS[target.shop]
       if (shop) {
-        run.currentSceneId = shop.next
         this.activeShop = shop.id
+        // next = 'NEXT_POOL' 的店铺:逛完回到队列,与其余选项的去向一致(不会吞掉后面的场景)
+        if (shop.next === 'NEXT_POOL') this.advanceScene()
+        else run.currentSceneId = shop.next
       }
     } else if ('act' in target) {
       this.finishAct()
@@ -250,6 +280,7 @@ export class GameEngine {
   private *resolveChoice(scene: SceneNode, choice: SceneChoice): Generator<GameEvent, GotoTarget | null, InteractionInput> {
     void scene
     const p = this.run.player
+    const before = this.snapshot()
     // 消耗
     if (choice.cost?.gold) { p.gold = Math.max(0, p.gold - choice.cost.gold) }
     let outcome = choice.outcome
@@ -272,12 +303,55 @@ export class GameEngine {
     this.applyEffects(outcome.effects ?? [])
     if (outcome.fx) yield { kind: 'fx', fx: outcome.fx }
     yield { kind: 'narration', paras: [outcome.text] }
+    const loot = this.lootSince(before)
+    if (loot.length) yield { kind: 'loot', items: loot }
     return outcome.goto
+  }
+
+  /** 结算前的可见状态快照 */
+  private snapshot() {
+    const p = this.run.player
+    return {
+      hp: p.hp, gold: p.gold, insp: p.inspiration, frag: p.fragments, xp: p.xp, resource: p.resource,
+      inv: Object.fromEntries(p.inventory.map((e) => [e.itemId, e.count])),
+      weapon: p.weaponId, armor: p.armorId, trinkets: [...p.trinketIds],
+      companion: p.companionBanjo, forgotten: p.forgottenNames.length,
+    }
+  }
+
+  /** 对比快照,得出实际变化(声明值可能被上限截断,不能直接拿来展示) */
+  private lootSince(b: ReturnType<GameEngine['snapshot']>): LootView[] {
+    const p = this.run.player
+    const out: LootView[] = []
+    const delta = (t: LootKind, was: number, now: number): void => { if (now !== was) out.push({ t, v: now - was }) }
+    delta('gold', b.gold, p.gold)
+    delta('hp', b.hp, p.hp)
+    delta('inspiration', b.insp, p.inspiration)
+    delta('fragment', b.frag, p.fragments)
+    delta('xp', b.xp, p.xp)
+    if (p.resource > b.resource) out.push({ t: 'resource', v: p.resource - b.resource })
+    if (!b.companion && p.companionBanjo) out.push({ t: 'companion' })
+    const now = Object.fromEntries(p.inventory.map((e) => [e.itemId, e.count]))
+    for (const [id, n] of Object.entries(now)) {
+      const d = n - (b.inv[id] ?? 0)
+      if (d > 0) out.push({ t: 'item', id, v: d })
+      else if (d < 0) out.push({ t: 'lost', id, v: -d })
+    }
+    for (const [id, n] of Object.entries(b.inv)) if (!(id in now)) out.push({ t: 'lost', id, v: n })
+    if (p.forgottenNames.length > b.forgotten) out.push({ t: 'lost' })   // 烬疫:想不起丢了什么
+    else {
+      const gear = [p.weaponId, p.armorId, ...p.trinketIds]
+      const old = [b.weapon, b.armor, ...b.trinkets]
+      for (const id of gear) if (!old.includes(id) && !(id in now)) out.push({ t: 'item', id })
+      for (const id of old) if (!gear.includes(id) && !(id in now)) out.push({ t: 'lost', id })
+    }
+    return out
   }
 
   private choiceViews(scene: SceneNode): ChoiceView[] {
     const p = this.run.player
-    return scene.choices.map((c) => {
+    // hideLocked:条件不满足时整条隐藏(默认是禁用显示)
+    return scene.choices.filter((c) => !c.hideLocked || this.choiceAvailable(c)).map((c) => {
       const ok = this.choiceAvailable(c)
       const v: ChoiceView = { id: c.id, text: c.text, locked: !ok }
       if (!ok) v.lockReason = this.lockReason(c)
@@ -469,7 +543,7 @@ export class GameEngine {
   }
 
   private advanceSceneRaw() {
-    this.run.currentSceneId = this.run.sceneQueue.shift() ?? ''
+    this.run.currentSceneId = this.nextUnvisited()
   }
 
   *combatLoop(): Generator<GameEvent, void, InteractionInput> {
@@ -599,7 +673,7 @@ export class GameEngine {
     }
     const crit = atk.value === 20
     const hit = crit || (atk.value !== 1 && atk.total >= m.ac)
-    yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, m) }
+    yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, m), actor: 'player' }
     if (!hit) {
       if (atk.value === 1) {
         // 破绽:借机打击
@@ -669,7 +743,7 @@ export class GameEngine {
         const atk = rollCheck(attackBonus(p), 'normal')
         const crit = atk.value === 20
         const hit = crit || (atk.value !== 1 && atk.total >= m.ac)
-        yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, m) }
+        yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, m), actor: 'player' }
         if (!hit) { yield { kind: 'combatLog', lines: ['烬火矢擦着它的肩膀飞过,在岩壁上烧出一个洞。'] }; break }
         const dmg = rollDice(crit ? '4d6' : '2d6')
         const res = applyDamageMods(dmg.total, 'fire', 'magic', m.vulnerabilities, m.resistances, false)
@@ -751,7 +825,7 @@ export class GameEngine {
     const ac = totalAc(p)
     const crit = atk.value === 20
     const hit = crit || (atk.value !== 1 && atk.total >= ac)
-    yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, { ...m, ac }) }
+    yield { kind: 'check', outcome: this.attackToCheckOutcome(atk, { ...m, ac }), actor: 'monster' }
     if (!hit) {
       yield { kind: 'combatLog', lines: [`${m.name}的攻击 ${atk.total} vs 你的 AC ${ac}——被你挡开了!${crit ? '' : ''}`] }
       return
@@ -809,10 +883,12 @@ export class GameEngine {
     p.gold += gold
     run.kills += 1
     this.addXp(m.xp)
+    yield { kind: 'monsterDown' }
     yield {
       kind: 'combatLog',
       lines: [`🏆 ${m.name}倒下了!化作灰烬前,它留下了 ${gold} 金币。(击杀+1,经验+${m.xp})`],
     }
+    yield { kind: 'loot', items: [{ t: 'gold', v: gold }, { t: 'xp', v: m.xp }] }
     yield { kind: 'fx', fx: 'gold' }
     run.combat = null
     // 升级?

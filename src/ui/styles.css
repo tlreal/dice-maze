@@ -518,3 +518,138 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ─── 画面区:场景插画 / 战斗舞台 ─── */
+#stage {
+  position: relative; flex: 0 0 auto;
+  height: clamp(112px, 23vh, 196px);
+  overflow: hidden; background: #0d0a08;
+  border-bottom: 1px solid var(--line);
+}
+#stage.collapsed { height: 0; border-bottom: none; }
+/* 矮窗口(桌面最小窗 360×600 一类):画面区让出一些高度给文字 */
+@media (max-height: 640px) { #stage { height: 18vh; } }
+.stage-layer { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+.stage-layer.show { opacity: 1; }
+.stage-layer svg { width: 100%; height: 100%; display: block; }
+#stage .world, #overlay-art .world { transition: transform .6s cubic-bezier(.2,.8,.2,1); transform-box: view-box; transform-origin: 0 0; }
+.ly, [data-fid] { transition: opacity .35s ease; }
+#stage.focusing [data-fid] { opacity: .2; }
+#stage.focusing [data-fid].on { opacity: 1; }
+#stage.focusing .ly-bg, #stage.focusing .ly-far { opacity: .42; }
+#stage.focusing .ly-near > g:not([data-fid]), #stage.focusing .ly-mid > g:not([data-fid]) { opacity: .3; }
+
+/* 环境动画:火焰跳动 / 火星升腾 / 雾气漂移 / 悬浮 / 摇曳 / 扑翼 */
+.a-flick { animation: aflick 1.5s ease-in-out infinite alternate; }
+@keyframes aflick { 0% { opacity: .72; } 100% { opacity: 1; } }
+.a-glow { animation: aflick 2.4s ease-in-out infinite alternate; }
+.a-rise { animation: arise 5s linear infinite; }
+@keyframes arise {
+  0% { transform: translateY(0); opacity: 0; }
+  14% { opacity: .9; }
+  72% { opacity: .65; }
+  100% { transform: translateY(-64px); opacity: 0; }
+}
+.a-drift { animation: adrift 9s ease-in-out infinite alternate; }
+@keyframes adrift { from { transform: translateX(-16px); } to { transform: translateX(16px); } }
+.a-float { animation: afloat 3.2s ease-in-out infinite; }
+@keyframes afloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3.5px); } }
+.a-sway { animation: asway 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes asway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+.a-flap { animation: aflap .46s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes aflap { from { transform: scaleY(1); } to { transform: scaleY(.42); } }
+
+/* ─── 插画总览页(仅开发用) ─── */
+.gallery body { margin: 0; overflow: auto; }
+
+/* ─── 画面区:控件 / 怪物卡叠加 / 折叠栏 / 全屏看图 ─── */
+#stage .stage-btn {
+  position: absolute; right: 6px; top: 6px; z-index: 3;
+  width: 26px; height: 22px; padding: 0; border-radius: 6px;
+  border: 1px solid rgba(232, 180, 90, .28); background: rgba(13, 8, 5, .55);
+  color: var(--gold); font-size: 12px; line-height: 1; cursor: pointer;
+}
+#stage #monster-card {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 12px 12px 6px; border-bottom: none; pointer-events: none;
+  background: linear-gradient(0deg, rgba(22, 9, 8, .94) 55%, rgba(22, 9, 8, 0));
+}
+#stage #monster-card .mc-emoji { display: none; }   /* 画面里已经有怪物剪影 */
+#stage #monster-card .mc-info { flex-direction: row; align-items: center; gap: 8px; }   /* 名字 · 血条 · 数值 排成一行 */
+#stage #monster-card .mc-name { font-size: .8em; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+#stage #monster-card .mc-hp { flex: 1; height: 7px; }
+#stage #monster-card .mc-hp-text { font-size: .72em; white-space: nowrap; }
+#stage-restore {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 4px 14px; font-size: .76em; color: var(--text-dim);
+  background: var(--bg2); border: none; border-bottom: 1px solid var(--line);
+}
+#overlay-art { z-index: 76; background: rgba(5, 3, 2, .94); cursor: zoom-out; }
+#overlay-art figure { margin: 0; width: min(100%, 920px); }
+#overlay-art .art { aspect-ratio: 400 / 170; overflow: hidden; border-radius: 10px; border: 1px solid #5a4520; background: #000; }
+#overlay-art svg { width: 100%; height: 100%; display: block; }
+#overlay-art figcaption {
+  margin-top: 12px; text-align: center; color: var(--gold-hi); letter-spacing: .14em;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+}
+#stage .stage-layer img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* 战斗演出:冲撞 / 受击 / 闪避 / 治疗 / 倒下(--u = 1/缩放,把画布单位换算成物件本地单位) */
+.fig { transform-box: fill-box; transform-origin: 50% 100%; }
+.fig.strike { animation: fstrike .42s cubic-bezier(.3,.9,.4,1); }
+@keyframes fstrike { 0% { transform: none; } 38% { transform: translateX(calc(var(--u) * 38px)); } 100% { transform: none; } }
+.fig.hit { animation: fhit .4s ease-out; }
+@keyframes fhit {
+  0% { transform: none; filter: none; }
+  18% { transform: translateX(calc(var(--u) * -13px)) rotate(calc(var(--u) * -4deg)); filter: brightness(3.2) saturate(.4); }
+  100% { transform: none; filter: none; }
+}
+.fig.dodge { animation: fdodge .46s ease-out; }
+@keyframes fdodge {
+  0% { transform: none; opacity: 1; }
+  30% { transform: translate(calc(var(--u) * -20px), calc(var(--u) * -9px)); opacity: .55; }
+  100% { transform: none; opacity: 1; }
+}
+.fig.heal { animation: fheal .7s ease-out; }
+@keyframes fheal { 0% { filter: none; } 35% { filter: brightness(2) drop-shadow(0 0 6px #6ee796); } 100% { filter: none; } }
+.fig.down { animation: fdown .9s cubic-bezier(.4, 0, .8, .5) forwards; }
+@keyframes fdown { 0% { transform: none; opacity: 1; } 100% { transform: rotate(82deg); opacity: .15; } }
+.a-ashfall { animation: ashfall linear infinite; }
+@keyframes ashfall {
+  0% { transform: translate(0, -180px); opacity: 0; }
+  10% { opacity: .75; }
+  85% { opacity: .6; }
+  100% { transform: translate(16px, 0); opacity: 0; }
+}
+.a-fall { animation: afall 2.8s ease-in infinite; }
+@keyframes afall { 0% { transform: translateY(-90px); opacity: 0; } 12% { opacity: 1; } 86% { opacity: 1; } 100% { transform: translateY(0); opacity: 0; } }
+
+/* ─── 结算图示行 ─── */
+.loot-row { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 2px; }
+.loot {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .8em; line-height: 1.5; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text); white-space: nowrap;
+  animation: lootin .35s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.loot:nth-child(2) { animation-delay: .07s; } .loot:nth-child(3) { animation-delay: .14s; }
+.loot:nth-child(4) { animation-delay: .21s; } .loot:nth-child(5) { animation-delay: .28s; }
+@keyframes lootin { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+.loot.gold, .loot.xp { color: var(--gold-hi); border-color: #5a4520; background: #241a0d; }
+.loot.heal, .loot.gain { color: var(--green); border-color: #2c4a30; background: #10201a; }
+.loot.loss { color: #ff9a80; border-color: #4a2018; background: #1e0e0c; }
+.loot.insp { color: var(--blue); border-color: #263a52; background: #0e1622; }
+.loot.frag { color: var(--gold-hi); border-color: #5a4520; background: #241a0d; box-shadow: 0 0 10px rgba(255, 210, 120, .2); }
+
+/* 战斗日志:比剧情旁白更小更淡,让故事文字更突出(文字不变) */
+.dm-line.combat { font-size: .9em; color: var(--text-dim); line-height: 1.5; }
+.dm-line.combat .hl { color: var(--gold-hi); }
+
+/* 结局插画 / 职业剪影 / 设置说明 */
+.ending-art { aspect-ratio: 400 / 170; overflow: hidden; border-radius: 10px; border: 1px solid #5a4520; background: #000; flex: none; }
+.ending-art svg { width: 100%; height: 100%; display: block; }
+.cg-class-emoji.cg-portrait { width: 100%; height: 46px; display: flex; align-items: flex-end; justify-content: center; }
+.cg-portrait svg { width: 46px; height: 50px; display: block; }
+.cg-class.sel .cg-portrait svg { filter: drop-shadow(0 0 5px rgba(255, 210, 120, .55)); }
+.set-row > span { display: flex; flex-direction: column; }
+.set-row > span i { font-style: normal; font-size: .72em; color: var(--text-dim); max-width: 220px; }

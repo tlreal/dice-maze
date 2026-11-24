@@ -5,7 +5,8 @@ import { sdk } from './sdk'
 import { GameUI } from './ui/render'
 import { particles } from './fx/particles'
 import { sfx } from './fx/audio'
-import type { MetaState } from './game/types'
+import { SCENES } from './content/scenes'
+import type { ClassId, MetaState } from './game/types'
 
 const DEFAULT_META: MetaState = {
   emberMarks: 0,
@@ -16,6 +17,10 @@ const DEFAULT_META: MetaState = {
   runsPlayed: 0,
   soundOn: true,
   fontScale: 1,
+  stageOn: true,
+  stageCollapsed: false,
+  skipSeen: true,
+  seenScenes: [],
 }
 
 async function boot(): Promise<void> {
@@ -40,6 +45,15 @@ async function boot(): Promise<void> {
 
   const ui = new GameUI(meta)
   await ui.showTitle()
+
+  // 开发用:打开 /?scene=a1_gate&cls=mage 直接跳进某个场景看画面(不进生产构建)
+  if (import.meta.env.DEV) {
+    const q = new URLSearchParams(location.search)
+    const sceneId = q.get('scene') ?? ''
+    const classes: ClassId[] = ['fighter', 'mage', 'rogue', 'cleric', 'bard', 'paladin']
+    const cls = q.get('cls') as ClassId | null
+    if (sceneId && SCENES[sceneId]) ui.devJump(sceneId, cls && classes.includes(cls) ? cls : 'fighter')
+  }
 
   // 导航栏深色前景(模板同款逻辑)
   try {

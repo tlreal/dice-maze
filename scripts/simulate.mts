@@ -4,6 +4,9 @@ import { GameEngine, type GameEvent, type InteractionInput } from '../src/game/e
 import type { ClassId, RunState } from '../src/game/types'
 import { classPresetAttrs } from '../src/game/rules'
 import { itemDef } from '../src/content/items'
+import { SCENES } from '../src/content/scenes'
+import { COMBAT_ART, SCENE_ART } from '../src/art/sceneArt'
+import { MONSTERS } from '../src/content/monsters'
 
 type Strategy = 'aggressive' | 'greedy' | 'safe' | 'story'
 
@@ -22,6 +25,7 @@ interface RunResult {
   killedBy: string
   hpAtEnd: number
   classId: string
+  repeats: string[]        // 同一局内被重播的场景 id(应为空)
 }
 
 function driveOne(classId: ClassId, strategy: Strategy): RunResult {
@@ -30,7 +34,10 @@ function driveOne(classId: ClassId, strategy: Strategy): RunResult {
   const res: RunResult = {
     crash: null, ending: '', act: 1, kills: 0, level: 1, fragments: 0,
     score: 0, scenes: 0, banjo: false, killedBy: '', hpAtEnd: 0, classId: classId,
+    repeats: [],
   }
+  const played = new Set<string>()
+  const noArt = new Set<string>()   // 本局遇到过、但没配插画(或聚焦数对不上)的场景/怪物
   const pickWeighted = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)]!
   try {
     const it = engine.flow()
@@ -96,6 +103,18 @@ function driveOne(classId: ClassId, strategy: Strategy): RunResult {
         }
         case 'combatStart': {
           res.killedBy = ev.monster.id
+          if (!COMBAT_ART[ev.monster.id]) noArt.add(`combat:${ev.monster.id}`)
+          break
+        }
+        case 'sceneTitle': {
+          // 场景重播检测:同一局内同一场景只应播放一次
+          const id = run.currentSceneId
+          if (played.has(id)) res.repeats.push(id)
+          played.add(id)
+          // 插画覆盖:每个场景都要配得上画面(段落聚焦数也要和正文段数对得上)
+          const art = SCENE_ART[id]
+          if (!art) noArt.add(id)
+          else if (art.focus && art.focus.length !== (SCENES[id]?.text.length ?? 0)) noArt.add(`${id}(focus ${art.focus.length} ≠ text ${SCENES[id]?.text.length})`)
           break
         }
         case 'ending': {
@@ -200,6 +219,25 @@ console.log(crashes.length === 0 ? '✅ 零崩溃' : `❌ ${crashes.length} 次�
 const killedBy: Record<string, number> = {}
 for (const r of finished) if (r.ending === 'end_death') killedBy[r.killedBy] = (killedBy[r.killedBy] ?? 0) + 1
 console.log('死亡凶手:', JSON.stringify(killedBy))
+const repeatedRuns = finished.filter((r) => r.repeats.length > 0)
+const repeatCount: Record<string, number> = {}
+for (const r of repeatedRuns) for (const id of r.repeats) repeatCount[id] = (repeatCount[id] ?? 0) + 1
+console.log(
+  repeatedRuns.length === 0
+    ? '✅ 场景零重播(所有场景每局至多播放一次)'
+    : `❌ ${repeatedRuns.length} 局出现场景重播: ${JSON.stringify(repeatCount)}`,
+)
+// 插画覆盖:把全部场景和怪物都过一遍(不管本局有没有走到)
+const uncovered = [
+  ...Object.keys(SCENES).filter((id) => !SCENE_ART[id]),
+  ...Object.keys(SCENES).filter((id) => SCENE_ART[id]?.focus && SCENE_ART[id]!.focus!.length !== SCENES[id]!.text.length),
+  ...Object.keys(MONSTERS).filter((id) => !COMBAT_ART[id]).map((id) => `combat:${id}`),
+]
+console.log(
+  uncovered.length === 0
+    ? `✅ 插画全覆盖(${Object.keys(SCENES).length} 个场景 · ${Object.keys(MONSTERS).length} 种怪物,段落聚焦数与正文段数一致)`
+    : `❌ 缺插画或聚焦数对不上: ${uncovered.join(', ')}`,
+)
 const byClass: Record<string, { n: number; wins: number }> = {}
 for (const r of finished) {
   byClass[r.classId] ??= { n: 0, wins: 0 }

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """QA 同源代理:/qa-harness.html 本地直出(不经 Vite,避免被 gate),
-其余路径转发到 Vite(5199)。仅本地 QA 用。"""
+其余路径转发到 Vite(5173)。仅本地 QA 用。"""
 import http.server
 import urllib.request
 import socketserver
@@ -48,5 +48,5 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     allow_reuse_address = True
 
 if __name__ == "__main__":
-    print("proxy on 8124 -> 5199")
+    print("proxy on 8124 -> 5173")
     Server(("127.0.0.1", 8124), Proxy).serve_forever()

@@ -191,7 +191,7 @@ export const SCENES: Record<string, SceneNode> = {
           goto: { to: 'NEXT_POOL' },
         },
       },
-      { id: 'give', text: '给点钱，不多问', cost: { gold: 3 }, outcome: { text: '他接钱的手很稳，稳得不像乞丐。算了，醒城日，大家都难。', effects: [{ t: 'gold', v: -3 }], goto: { to: 'NEXT_POOL' } } },
+      { id: 'give', text: '给点钱，不多问', cost: { gold: 3 }, outcome: { text: '他接钱的手很稳，稳得不像乞丐。算了，醒城日，大家都难。', goto: { to: 'NEXT_POOL' } } },
     ],
   },
   a1_shrine: {
@@ -214,7 +214,7 @@ export const SCENES: Record<string, SceneNode> = {
           goto: { to: 'NEXT_POOL' },
         },
       },
-      { id: 'coin', text: '投一枚金币', cost: { gold: 1 }, outcome: { text: '金币落进功德箱，叮的一声。你总觉得那声「叮」……回音长了点，像是从地底传上来的应答。', effects: [{ t: 'gold', v: -1 }], goto: { to: 'NEXT_POOL' } } },
+      { id: 'coin', text: '投一枚金币', cost: { gold: 1 }, outcome: { text: '金币落进功德箱，叮的一声。你总觉得那声「叮」……回音长了点，像是从地底传上来的应答。', goto: { to: 'NEXT_POOL' } } },
       { id: 'pass', text: '不停留', outcome: { text: '你路过神龛。无脸的神目送你，用一片模糊。', goto: { to: 'NEXT_POOL' } } },
     ],
   },
@@ -347,6 +347,152 @@ export const SCENES: Record<string, SceneNode> = {
           goto: { to: 'NEXT_POOL' },
         },
       },
+    ],
+  },
+  // ── 第一幕随机池·续 ──
+  a1_ember_rain: {
+    id: 'a1_ember_rain', act: 1, thread: 'side', fixed: false, title: '烬雨', bg: 'gate',
+    text: [
+      '出镇的石板路上，天忽然落起雨来。落在手背却是**温的**，化开成一摊浅灰——不是雨，是烬。百年一醒的那东西在下面翻了个身，灰就顺着风飘到了镇上。',
+      '路上的人纷纷举起锅盖、门板、洗衣盆挡头。只有屋檐下的野猫浑不在意，任灰烬在毛上积成一层薄霜。',
+    ],
+    choices: [
+      {
+        id: 'taste', text: '仰头接一片，看它化成谁的模样（宗教检定）',
+        check: { skill: 'religion', dc: 12 },
+        success: {
+          text: '烬片落到舌尖之前，在你眼前极快地闪了一下——**一个女人的侧影，在灶台边回头。**你不认识她，鼻子却莫名发酸。婆婆说过，烬疫吃掉的记忆会顺着灰飘上来。你悄悄记下这张脸：也许到了下面，有人正在找它。',
+          fx: 'ember',
+          effects: [{ t: 'inspiration' }, { t: 'flag', id: 'ember_face' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '烬片粘在睫毛上，烫出一个小小的白点。你眼前发花了好一阵，什么也没看见——只闻到一股烧头发的味道，像谁的记忆正在不远处被烧掉。',
+          fx: 'hurt',
+          effects: [{ t: 'hp', v: -2 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'shelter', text: '躲进屋檐下，看看风向（生存检定）',
+        check: { skill: 'survival', dc: 10 },
+        success: {
+          text: '你看出这阵烬雨来得急、去得也快——风头正在转。果然，不到一炷香，灰就停了。檐下的排水沟里还冲出来一枚旧铜钉，是迷城里那种门钉的样式，有人出得起价。',
+          effects: [{ t: 'gold', v: 8 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '烬雨越下越密，你被堵在屋檐下足足半个时辰。雨停时，第一缕天光已经爬上城头——出发晚了，你只能一路小跑，胸口火烧火燎。',
+          effects: [{ t: 'hp', v: -2 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'run', text: '把外衣顶在头上，闷头赶路', outcome: { text: '外衣上落满了灰，像披了一层旧雪。到了城门你一抖，灰里混着一粒没熄的火星，把衣角烫出个小洞。好兆头还是坏兆头？你决定不想。', effects: [{ t: 'hp', v: -1 }], goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a1_watchman: {
+    id: 'a1_watchman', act: 1, thread: 'side', fixed: false, title: '钟楼的守夜人', bg: 'tavern',
+    text: [
+      '镇口的钟楼里，守夜人裹着斗篷打盹，怀里的马灯只剩一豆火。醒城日的钟要敲三下——**一声叫醒镇子，一声送走死人，一声给自己壮胆。**',
+      '他听见脚步，迷迷糊糊睁开一只眼：「勇士……替、替我敲两下行不行？昨晚喝了点……**第三下留给我。**」',
+    ],
+    choices: [
+      {
+        id: 'ring', text: '接过钟绳，把三声都敲了（运动检定）',
+        check: { skill: 'athletics', dc: 12 },
+        success: {
+          text: '钟绳比你想象的沉。你腰背发力——一声，镇子的灯一盏盏亮起来；二声，远处迷城方向的风停了半拍；第三下你特意敲得极响，钟声撞在山壁上滚了三滚。守夜人一个激灵坐直：「好家伙，第三下比我有劲儿。」他掏出一小袋酒钱塞给你。',
+          fx: 'gold',
+          effects: [{ t: 'gold', v: 12 }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '第二下你手上打滑，钟锤撞偏了，发出的不是钟声，是一声闷闷的**咳嗽**。半个镇子的狗同时叫了起来。守夜人捂着脸：「……算了算了，我来。」',
+          effects: [{ t: 'hp', v: -1 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'ask', text: '「你在这儿守了多少年了？」',
+        outcome: {
+          text: '「守到守不动为止。」他清醒了一点，望着窗外的钟面，「这钟上没有十二个刻度，**只有一格**——百年。每到那一格，我就敲三下。敲了四十回了。」他顿了顿，「我爹敲了四十回，他爹也是。勇士，你们下去，我们守着。**谁也不欠谁。**',
+          fx: 'ember',
+          effects: [{ t: 'flag', id: 'watchman_talked' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'pass', text: '不惊动他，轻轻走过去', outcome: { text: '你踮着脚经过。快到门口时，身后传来一声含糊的：「……一路顺风啊。」他其实没睡着。', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a1_ledger_pages: {
+    id: 'a1_ledger_pages', act: 1, thread: 'granny', fixed: false, title: '被风吹开的登记簿', bg: 'gate',
+    text: [
+      '一阵风卷过街口，把酒馆门口晾着的几页旧纸吹了满天。伙计手忙脚乱地去追：「登记簿！别踩——那是**历届下去的人**！」',
+      '一页纸恰好贴在你胸前。上面是一排名字，一排被描黑的墨迹。墨迹一直排到页脚，密得像一场黑色的雨。',
+    ],
+    choices: [
+      {
+        id: 'help', text: '帮他把纸页都追回来（运动检定）',
+        check: { skill: 'athletics', dc: 11 },
+        success: {
+          text: '你追回七页，最后一页是从一头猪嘴边抢下来的。伙计千恩万谢，顺便多嘴：「这一页最老——你看最上面那个名字，婆婆每年都要重描一遍，怕它淡了。」最上面只有一个字：**将。**',
+          fx: 'gold',
+          effects: [{ t: 'gold', v: 6 }, { t: 'flag', id: 'ledger_seen' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你扑了个空，纸页飘飘摇摇落进了井里。伙计叹了口气：「没事，反正上面的名字……也都上不来了。」',
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'read', text: '先把胸前这页看仔细（调查检定）',
+        check: { skill: 'investigation', dc: 12 },
+        success: {
+          text: '你注意到：被描黑的墨迹深浅不一，最新的那个名字旁边，墨还**没干透**。而它上面有一行小得几乎看不见的备注：「第九个·未归·**留书于二层**」。第九个人没死？他留了什么书？',
+          effects: [{ t: 'flag', id: 'ledger_note' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你正看得入神，纸又被风卷走了。只来得及看见页脚一个数字：**三十八**。',
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'go', text: '把纸拍回伙计怀里，赶路', outcome: { text: '「哎呀谢谢！」伙计抱着纸页跑出两步又回头，「勇士，登记簿上给你留的是**最后一行**——下面还有好多空行呢！」他大概是想讨个吉利。', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a1_ember_hound: {
+    id: 'a1_ember_hound', act: 1, thread: 'side', fixed: false, title: '瘸腿烬犬', bg: 'gate',
+    text: [
+      '一条瘦骨嶙峋的黄狗跟着你走了一路。它左后腿瘸着，尾巴却**分成了两条**——一条摇，一条不摇。',
+      '它在离你三步远的地方坐下，把嘴里的东西「啪」地吐在地上：半块硬得像石头的黑面包。它看看你，又看看面包——是在**分你**。',
+    ],
+    choices: [
+      {
+        id: 'share', text: '把干粮分它一半，收下它的面包',
+        grantsInspiration: true,
+        outcome: {
+          text: '你咬了一口黑面包——居然是甜的，像用某种果子的灰烤的。狗吃得很郑重，每一下都嚼很久。吃完，它用那条会摇的尾巴扫了扫地，**在前头一瘸一拐地为你带了一段路**，直到城门才停下，冲着里面低低地呜了一声。',
+          fx: 'heal',
+          effects: [{ t: 'inspiration' }, { t: 'flag', id: 'hound_friend' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'heal', text: '蹲下来检查它的瘸腿（医药检定）',
+        check: { skill: 'medicine', dc: 12 },
+        success: {
+          text: '腿骨是旧伤，断口整齐——是**被利器一下砍断的**，不是摔的。你找了根直树枝，用绷带给它固定好。它一声没吭，只在你系结时舔了舔你的手腕。它的项圈藏在毛里，下面压着一小瓶药水，不知是哪个好心人给它系上的。',
+          fx: 'heal',
+          effects: [{ t: 'item', id: 'potion' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你刚碰到它的腿，它「呜」地一声缩了回去，夹着尾巴跑开几步，又回头看你——不是怕你，是**疼怕了**。',
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'leave', text: '绕开它。醒城日遍地是「需要帮助的」', outcome: { text: '你绕开它走了。走出很远，那条会摇的尾巴还在原地一下、一下地扫着地。', goto: { to: 'NEXT_POOL' } } },
     ],
   },
   // ── 第一幕固定锚点 ──
@@ -860,6 +1006,133 @@ export const SCENES: Record<string, SceneNode> = {
       { id: 'take', text: '收好日记', outcome: { text: '第二枚残章,入手。它的重量又沉了一分。', fx: 'fragment', effects: [{ t: 'fragment' }, { t: 'flag', id: 'frag2_read' }, { t: 'flag', id: 'knows_secret_gap' }], goto: { to: 'NEXT_POOL' } } },
     ],
   },
+  // ── 第二幕随机池·续 ──
+  a2_ferry: {
+    id: 'a2_ferry', act: 2, thread: 'side', fixed: false, title: '渡魂船', bg: 'cavern',
+    text: [
+      '甬道尽头是一片地下湖,黑得像一块打磨过的墨。岸边泊着一条窄船,船夫裹着空荡荡的袍子,手里一根长篙——**兜帽底下什么也没有。**',
+      '「过湖,」他的声音像水底冒上来的气泡,「不收金币。收**一段不要的记忆**——或者,你自己游。」湖水拍了拍船帮,很凉。',
+    ],
+    choices: [
+      {
+        id: 'ride', text: '上船,任它取走一点点',
+        outcome: {
+          text: '船篙一点,船无声地滑进黑暗。它的兜帽凑近你,你感到脑中有什么被轻轻抽走——像从一本书里撕掉了一条无关紧要的注释。船靠岸时,你想不起自己**昨天早饭吃了什么**,却奇怪地觉得浑身轻快。',
+          fx: 'ember',
+          effects: [{ t: 'hp', v: -4 }, { t: 'heal_pct', v: 0.5 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'ask', text: '「你渡过多少人?」（洞悉检定）',
+        check: { skill: 'insight', dc: 12 },
+        success: {
+          text: '「**没人数过。**」它答得很慢,「但我记得每一个人的重量。你比上一个轻——上一个把女儿的长相带上了船,船差点沉。」篙尖挑起一点湖水。「你的那段,烧在哪一年?」你忽然明白:渡魂船渡的从来不是人,是**没烧干净的东西**。它没有收你的船资。',
+          effects: [{ t: 'flag', id: 'ferry_known' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '它不答,兜帽微微偏了一下。你只觉得那片空荡荡的黑正在**称你的重量**,浑身的皮肤都起了粟粒。',
+          effects: [{ t: 'hp', v: -2 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'walk', text: '不走水路,沿湖绕过去', outcome: { text: '你沿着湖岸走了很久很久。礁石割破了鞋底,水汽里全是同样的墨色。绕到对岸时,那条船已经等在那儿了——篙尖指着前方的路,像在说:**早说嘛。**', effects: [{ t: 'hp', v: -3 }], goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a2_echo_hall: {
+    id: 'a2_echo_hall', act: 2, thread: 'side', fixed: false, title: '回声大厅', bg: 'cavern',
+    text: [
+      '这座洞窟的穹顶高得看不见。你脚下一声脆响,回声却**回来了两遍**——第一遍是你的,第二遍,不是。',
+      '「……回来……」第二道回声说。那是一个男人的嗓音,疲惫、沙哑,像被火烧过的木头。',
+    ],
+    choices: [
+      {
+        id: 'shout', text: '再喊一声,听它答什么（洞悉检定）',
+        check: { skill: 'insight', dc: 13 },
+        success: {
+          text: '你喊出一个「谁」。回声沉默了很久,然后一字一顿:「……**问你自己。**」声音在穹顶下散开时,你听出了端倪——它不是在回答你,它在**重复一百年前有人问过它的话**。这座大厅记得每一个声音。二层墙上那行刻字,也许就是这么留下来的。',
+          fx: 'ember',
+          effects: [{ t: 'flag', id: 'echo_truth' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你喊「谁」,回声也喊「谁」;你喊「出去」,它也喊「出去」。像在跟一口井吵架。你嗓子都喊哑了,它还是只会复读。',
+          effects: [{ t: 'hp', v: -1 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'banjo', text: '「班卓,是你吗?」（需要同伴班卓）',
+        requireCompanion: true,
+        outcome: {
+          text: '班卓在你背后拨了一下琴弦。「**老伙计,是我。**」他冲黑暗里喊。穹顶沉默了很久,回声这次变了——变成一串**跑调的哼唱**,一支歌的前四个音。班卓的手停在弦上:「……那是我教的。教了五天,他只学会了四个音。」他把琴抱得更紧,「走吧。别听了。」',
+          fx: 'fragment',
+          effects: [{ t: 'inspiration' }, { t: 'flag', id: 'echo_song' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'silent', text: '闭紧嘴,快步穿过', outcome: { text: '你屏住呼吸往前走,脚步声只响了一遍。走到洞口,身后传来一声极轻的叹息,像有人终于放弃了等待。', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a2_wine_cellar: {
+    id: 'a2_wine_cellar', act: 2, thread: 'side', fixed: false, title: '醉杯团的酒窖', bg: 'cavern',
+    text: [
+      '营地后面有扇矮门,门缝里飘出浓烈的酒气。你推门进去——好家伙,**一整面墙的酒桶**,桶上都用炭笔画着倒置的酒杯。',
+      '最里头一只桶已经开了封,旁边扔着一把没人管的酒勺。桶边的小凳上,一个兽人抱着没盖盖子的酒壶,鼾声打得桶身嗡嗡响。',
+    ],
+    choices: [
+      {
+        id: 'steal', text: '悄悄灌两瓶带走（隐匿检定）',
+        check: { skill: 'stealth', dc: 12 },
+        success: {
+          text: '你脚尖点地,绕开地上的空壶,从桶里灌满了两只水瓶。兽人的鼾声都没停一下。出门时你还顺手从他的酒壶里补了一口——**辣得像吞了一把烧红的钉子**,但浑身的疲惫一下子烧干净了。',
+          fx: 'heal',
+          effects: [{ t: 'heal_pct', v: 0.35 }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你的手刚碰到桶塞,那兽人翻了个身,嘟囔着:「……谁……偷酒……」他的手摸向巨斧。你贴着酒桶一动不敢动,直到鼾声重新响起,才憋着一身冷汗退了出去。',
+          effects: [{ t: 'hp', v: -1 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'drink', text: '在他旁边坐下,喝一杯',
+        outcome: {
+          text: '你在他旁边坐下,举起酒壶。兽人睁开一只眼,看了看酒壶,又看了看你,咧嘴一笑:「**懂规矩。**」他跟你碰了碰壶,又倒头睡去。你喝了一口——烧心,但暖。',
+          fx: 'heal',
+          effects: [{ t: 'hp', v: 3 }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'leave', text: '不碰,退出去', outcome: { text: '酒虽好,可你还得留着一个清醒的脑袋去见「那位」。你退出去时,把门缝掩得比原来更小了一点。', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a2_bat_swarm: {
+    id: 'a2_bat_swarm', act: 2, thread: 'side', fixed: false, title: '烬蝠群', bg: 'cavern',
+    text: [
+      '头顶传来一阵细碎的「噼啪」声,像有人在炒芝麻。你抬头——洞顶倒吊着的不是钟乳石,是**几百只烬蝠**,翼膜边缘燃着一线火星。',
+      '一只,十只,一片……它们次第睁开眼睛。是你手里火把的光,把它们全吵醒了。',
+    ],
+    choices: [
+      {
+        id: 'fire', text: '把火把在头顶抡成一圈火墙（生存检定）',
+        check: { skill: 'survival', dc: 12 },
+        success: {
+          text: '怕火的东西,比火更怕**会转圈的火**。你把火把抡成一轮风火轮,烬蝠群尖叫着向上盘旋,撞作一团,像一朵炸开的枯萎烟花。等它们重新倒吊好,地上落了一层烧焦的翼膜碎屑——轻得没有重量。',
+          fx: 'ember',
+          effects: [{ t: 'xp', v: 1 }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '火把脱手飞了出去。黑暗里,几百双火星一样的眼睛同时转向了你。',
+          goto: { combat: 'emberbat', onWin: 'NEXT_POOL', onLose: 'ending:death' },
+        },
+      },
+      { id: 'fight', text: '拔武器,迎击', outcome: { text: '翼膜振动的嗡嗡声压了下来,火星像雨点一样往下掉。', goto: { combat: 'emberbat', onWin: 'NEXT_POOL', onLose: 'ending:death' } } },
+    ],
+  },
   a2_camp2: {
     id: 'a2_camp2', act: 2, thread: 'granny', fixed: true, title: '第二处篝火', bg: 'camp',
     text: [
@@ -1103,6 +1376,148 @@ export const SCENES: Record<string, SceneNode> = {
       { id: 'go', text: '赶路要紧', outcome: { text: '你最后看了一眼那盏灯。它在无边暖光里,固执地亮着冷色。', goto: { to: 'NEXT_POOL' } } },
     ],
   },
+  // ── 第三幕随机池·续 ──
+  a3_mirror_hall: {
+    id: 'a3_mirror_hall', act: 3, thread: 'side', fixed: false, title: '灰烬镜厅', bg: 'throne',
+    text: [
+      '这条侧廊的两侧立满了高过人的镜子。镜面是**磨平的灰烬**,照得出影,却照不出色。',
+      '你走过时,其中一面镜子里,浮出了一段**不属于现在**的画面。',
+    ],
+    choices: [
+      {
+        id: 'snow', text: '镜里下着雪——停下来看（你在酒馆烧掉的,是童年初雪）',
+        requireFlag: 'mem_snow', hideLocked: true,
+        outcome: {
+          text: '雪片落在一只包着小手的粗糙手掌上。白气,笑声——**你为什么笑得那么开心。**你想不起原因,却在镜前站了很久,直到镜面上的灰被呼吸吹得斑驳。还记得的,是暖。你伸手按了按镜面:「等我回来。」镜子里,有谁替你**回握了一下**。',
+          fx: 'heal',
+          effects: [{ t: 'inspiration' }, { t: 'heal_pct', v: 0.5 }, { t: 'flag', id: 'mirror_seen' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'win', text: '镜里是欢呼声——停下来看（你在酒馆烧掉的,是第一场胜利）',
+        requireFlag: 'mem_win', hideLocked: true,
+        outcome: {
+          text: '沙尘,举起的手臂,潮水一样的欢呼——所有人都在喊一个名字。你侧耳去听,还是听不清。可你忽然发现:**他们喊得那么开心,未必是因为赢。**也许只是因为你在那儿。你不太确定这个念头是不是自己的。但它让你挺直了背。',
+          fx: 'heal',
+          effects: [{ t: 'inspiration' }, { t: 'heal_pct', v: 0.5 }, { t: 'flag', id: 'mirror_seen' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'face', text: '镜里是一张侧脸——停下来看（你在酒馆烧掉的,是一个人）',
+        requireFlag: 'mem_face', hideLocked: true,
+        outcome: {
+          text: '黄昏的光斜过来。睫毛,唇角,欲言又止——五官仍是模糊的。但这一次,镜中的**那个人抬起了手**,像要替你拂掉肩上的灰。你站在原地,没有躲。一段记忆被烧掉了。可它好像……还在灰里留着一点温度。',
+          fx: 'heal',
+          effects: [{ t: 'inspiration' }, { t: 'heal_pct', v: 0.5 }, { t: 'flag', id: 'mirror_seen' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'pass', text: '不看,快步走过去', outcome: { text: '你盯着自己的鞋尖走完了整条长廊。镜子里只有灰。', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a3_ash_garden: {
+    id: 'a3_ash_garden', act: 3, thread: 'side', fixed: false, title: '灰烬花园', bg: 'throne',
+    text: [
+      '王座殿的侧殿里,长着一片**灰做的花**。没有茎,没有叶,每一朵都是从地砖缝里堆出来的一小捧细灰。风一过,花瓣轻轻掉一层,又轻轻长回来。',
+      '花丛中立着一块小木牌,字迹稚嫩:「**请勿采摘——这些是用别人的名字种出来的。**」',
+    ],
+    choices: [
+      {
+        id: 'read', text: '在花丛边坐下,读一读每一朵（宗教检定）',
+        check: { skill: 'religion', dc: 12 },
+        success: {
+          text: '你凑近了看:每一片灰花瓣上,都刻着一个极小的名字。成百上千朵。你轻声念了其中几个——念一个,那一朵就亮一下,像有人在很远的地方应了一声。你忽然舍不得走了。等起身时,肩头的伤不知不觉结了痂。',
+          fx: 'heal',
+          effects: [{ t: 'heal_pct', v: 0.6 }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '你念得太急,一口气念了七八个名字。花丛齐齐一颤,所有花瓣同时掉了一层——灰呛进喉咙,你咳出了眼泪。木牌上的字,似乎变淡了一点。',
+          fx: 'hurt',
+          effects: [{ t: 'hp', v: -3 }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'search', text: '找一找有没有熟悉的名字（调查检定）',
+        check: { skill: 'investigation', dc: 13 },
+        success: {
+          text: '你一朵一朵翻过去,在最角落找到一朵格外小的。花瓣上的名字被磨得几乎看不清,只剩最后一笔——**和登记簿上最上面那个字,是同一笔。**有人把他的名字也种在了这里。你在花下刨出一只被灰埋住的旧钱袋。',
+          fx: 'gold',
+          effects: [{ t: 'gold', v: 25 }, { t: 'flag', id: 'garden_found' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '名字太多了,看得你眼睛发花。没找到熟悉的,倒被一片灰花瓣迷了眼。',
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      { id: 'pass', text: '不碰,绕过去', outcome: { text: '你绕开花丛。走到侧殿门口回头看了看:木牌旁边不知什么时候多了一行小字——「**谢谢。**」', goto: { to: 'NEXT_POOL' } } },
+    ],
+  },
+  a3_duet: {
+    id: 'a3_duet', act: 3, thread: 'banjo', fixed: false, title: '断弦之和音', bg: 'throne', requireCompanion: true,
+    text: [
+      '侧廊尽头,班卓抱着琴,对着王座殿的方向坐着,一只脚骨打着拍子。他听见你,没回头:「来,坐。**打这一架之前,得先把这首歌唱完。**」',
+      '他拨了一下那根仅剩的弦。空空的眼窝里,蓝火烧得很安静。歌只有半句——是一支**唱了一百年、还差最后四个音的歌**。',
+    ],
+    choices: [
+      {
+        id: 'listen', text: '坐下,听他把这首歌唱完',
+        outcome: {
+          text: '「火焰记得每个名字,名字记得回家的路——」他唱到这儿停下来,把琴递给你:「**你按住这根弦。别松。**」你按住。他闭上并不存在的眼,唱出了最后四个音。走调的。难听的。可整条侧廊的灰烬都静了下来,连大殿方向的地火都停了一拍。班卓收回琴,下颌骨轻轻磕了一下:「**好了。唱完了。**」他站起来,骨头第一次没有响。',
+          fx: 'heal',
+          effects: [{ t: 'heal_full' }, { t: 'short_rest' }, { t: 'inspiration' }, { t: 'flag', id: 'duet_done' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'ask', text: '「最后四个音,是写给谁的?」',
+        outcome: {
+          text: '班卓没答。他把琴转过来给你看——琴箱内侧刻着五个歪歪扭扭的小人,其中一个被圈了出来。「写给一个**学得很慢的学生**。」他轻声说,「他唱歌总跑调。可他每次都唱。」',
+          fx: 'fragment',
+          effects: [{ t: 'flag', id: 'duet_song' }, { t: 'inspiration' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+    ],
+  },
+  a3_royal_guard: {
+    id: 'a3_royal_guard', act: 3, thread: 'side', fixed: false, title: '溃散的近卫', bg: 'throne',
+    text: [
+      '殿前的长阶上跪着一副**空铠甲**。没有人穿着它,甲缝里却还漏着火,像一块没烧透的炭。它双手握着一杆长枪,枪尖拄地,姿态标准得像在**等长官检阅**。',
+      '你走近时,头盔里传来一声锈响:「**口令。**」',
+    ],
+    choices: [
+      {
+        id: 'password', text: '「去去就回。」（需要听过婆婆讲那个故事）',
+        requireFlag: 'granny_story_1',
+        outcome: {
+          text: '铠甲静止了很久。甲缝里的火,忽然亮了一瞬——像有人在很远的地方,终于等到了一句回话。「……**指令确认。**」它单膝跪地,把长枪平举过顶,「本卫失职:未能等到将军建功归来。现——移交信物。」枪尖挑来一枚烧变形的军徽。火熄了。铠甲哗啦一声,塌成一堆铁。',
+          fx: 'gold',
+          effects: [{ t: 'gold', v: 40 }, { t: 'xp', v: 5 }, { t: 'inspiration' }, { t: 'flag', id: 'guard_released' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+      },
+      {
+        id: 'bluff', text: '「口令忘了。我是来接班的。」（游说检定）',
+        check: { skill: 'persuasion', dc: 13 },
+        success: {
+          text: '「接班。」它重复了一遍,锈响里带着一点松动,「……也好。站了一百年,确实该换岗了。」它把长枪插进地里,甲胄一层层松开,「本卫交接:门后那位——**他其实很喜欢听人夸他唱歌。**」说完,塌成一堆铁,只剩枪柄上系着的一枚护符。',
+          fx: 'gold',
+          effects: [{ t: 'item', id: 'guardcharm' }, { t: 'xp', v: 4 }, { t: 'flag', id: 'guard_hint' }],
+          goto: { to: 'NEXT_POOL' },
+        },
+        failure: {
+          text: '「口令错误。」枪尖离地,燃起一线白火。「**来者,通名——受死。**」它站了起来,比你高出一头。',
+          goto: { combat: 'ashKnight', onWin: 'NEXT_POOL', onLose: 'ending:death' },
+        },
+      },
+      { id: 'fight', text: '拔剑。空铠甲没什么好谈的', outcome: { text: '你握紧武器。它的枪尖缓缓抬起,对准了你的咽喉。', goto: { combat: 'ashKnight', onWin: 'NEXT_POOL', onLose: 'ending:death' } } },
+    ],
+  },
   a3_lastcamp: {
     id: 'a3_lastcamp', act: 3, thread: 'granny', fixed: true, title: '最后的篝火', bg: 'camp',
     text: [
@@ -1214,15 +1629,18 @@ export interface ActPlan {
 export const ACT_PLANS: Record<number, ActPlan> = {
   1: {
     anchors: ['a1_open', 'a1_sign', 'a1_memory_done', { pool: 2 }, 'a1_forge', 'a1_gate', 'a1_goblin_ambush', { pool: 2 }, 'a1_camp1', { pool: 1 }, 'a1_spider_lair', 'a1_end'],
-    pool: ['a1_banjo_intro', 'a1_well', 'a1_beggar', 'a1_shrine', 'a1_lostcart', 'a1_ghost_child', 'a1_gamblers', 'a1_frag1'],
+    pool: ['a1_banjo_intro', 'a1_well', 'a1_beggar', 'a1_shrine', 'a1_lostcart', 'a1_ghost_child', 'a1_gamblers', 'a1_frag1',
+      'a1_ember_rain', 'a1_watchman', 'a1_ledger_pages', 'a1_ember_hound'],
   },
   2: {
     anchors: ['a2_descend', { pool: 2 }, 'a2_market', { pool: 2 }, 'a2_camp2', { pool: 1 }, 'a2_heart_maze', 'a2_boss_minotaur', 'a2_end_heart'],
-    pool: ['a2_banjo_truth', 'a2_fountain', 'a2_library', 'a2_mimic', 'a2_shadows', 'a2_skeleton_rubble', 'a2_ghoul_ambush', 'a2_orc_camp', 'a2_frag2'],
+    pool: ['a2_banjo_truth', 'a2_fountain', 'a2_library', 'a2_mimic', 'a2_shadows', 'a2_skeleton_rubble', 'a2_ghoul_ambush', 'a2_orc_camp', 'a2_frag2',
+      'a2_ferry', 'a2_echo_hall', 'a2_wine_cellar', 'a2_bat_swarm'],
   },
   3: {
     anchors: ['a3_throne_gate', { pool: 2 }, 'a3_lastcamp', 'a3_boss_king'],
-    pool: ['a3_frag3', 'a3_whisper', 'a3_stall', 'a3_tendril_ambush'],
+    pool: ['a3_frag3', 'a3_whisper', 'a3_stall', 'a3_tendril_ambush',
+      'a3_mirror_hall', 'a3_ash_garden', 'a3_duet', 'a3_royal_guard'],
   },
 }
 

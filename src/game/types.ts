@@ -246,6 +246,7 @@ export interface SceneNode {
   act: 1 | 2 | 3
   thread: Thread
   fixed: boolean          // true = 幕内固定锚点；false = 随机池
+  requireCompanion?: boolean  // 随机池场景的条件:需要班卓同行才会被抽到
   title?: string
   text: string[]          // 多段旁白
   choices: SceneChoice[]
@@ -365,4 +366,8 @@ export interface MetaState {
   runsPlayed: number
   soundOn: boolean
   fontScale: 0 | 1 | 2               // 字号三档
+  stageOn: boolean                   // 场景画面区(插画/战斗舞台)
+  stageCollapsed: boolean            // 画面区被折叠
+  skipSeen: boolean                  // 已读快进:读过的场景再次出现时旁白直接显示
+  seenScenes: string[]               // 已经读过的场景 id
 }

@@ -137,6 +137,6 @@ export const SHOPS: Record<string, ShopDef> = {
     keeper: '盲眼商贩',
     greeting: '「我不看货，只看人——你在发抖，但我闻得出你还要往上走。最后一笔买卖了。」',
     items: ['emberbrand', 'guardcharm', 'hipotion', 'potion'],
-    next: 'a3_lastcamp',
+    next: 'NEXT_POOL',   // 小摊是随机场景:逛完回到队列,不吞掉后面的场景
   },
 }

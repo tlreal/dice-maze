@@ -1,10 +1,11 @@
 // ─── UI 渲染层:装配界面 + 播放引擎演出事件 ──────────────────────────
-import type { InteractionInput, GameEvent, ChoiceView } from '../game/engine'
+import type { InteractionInput, GameEvent, ChoiceView, LootView } from '../game/engine'
 import { GameEngine } from '../game/engine'
-import type { ClassId, MetaState, RunState, LuckGrade } from '../game/types'
+import type { ClassId, MetaState, RunState, LuckGrade, EndingId } from '../game/types'
 import { ATTR_NAMES } from '../game/types'
 import { classDef, FEATS } from '../content/classes'
 import { itemDef, SHOPS } from '../content/items'
+import { SCENES } from '../content/scenes'
 import { attrMod, classPresetAttrs, rollAbility4d6DropLowest, STANDARD_ARRAY, totalAc, maxResource, luckGrade } from '../game/rules'
 import { typewrite } from '../fx/typewriter'
 import { playDiceRoll, playDeathSave } from '../fx/dice3d'
@@ -13,6 +14,11 @@ import { flash as _flash, shake, hurtVignette, hitStop, sleep } from '../fx/scre
 void _flash
 import { sfx } from '../fx/audio'
 import { sdk } from '../sdk'
+import { stage } from './stage'
+import { SCENE_ART } from '../art/sceneArt'
+import { figureSvg } from '../art/render'
+import { playerOfClass } from '../art/figures'
+import type { BgId } from '../art/backdrops'
 
 const ACT_NAMES: Record<number, string> = { 1: '烬痕镇与迷城之门', 2: '幽暗深处', 3: '烬王殿' }
 
@@ -29,10 +35,16 @@ export class GameUI {
   private currentClass: ClassId = 'fighter'
   private attrMode: 'preset' | 'array' | 'roll' = 'preset'
   private rolledAttrs: number[] | null = null
+  private currentSceneId = ''        // 供「已读快进」记账
+  private inSceneText = false        // 下一段旁白是否为场景正文(紧随 sceneTitle)
+  private sceneFocus: string[][] | null = null
+  private repaint: (() => void) | null = null   // 重新画出当前画面(设置里重新打开画面区时用)
 
   constructor(meta: MetaState) {
     this.meta = meta
     this.buildSkeleton()
+    stage.mount(el('stage'), el('stage-restore'))
+    stage.onChange = (collapsed) => { this.meta.stageCollapsed = collapsed; void this.saveMeta() }
     this.applyFontScale()
   }
 
@@ -42,7 +54,8 @@ export class GameUI {
     app.innerHTML = `
       <div id="status-bar" class="hidden"></div>
       <div id="scene-header" class="hidden"></div>
-      <div id="monster-card" class="hidden"></div>
+      <div id="stage" class="hidden"><div id="monster-card" class="hidden"></div></div>
+      <button id="stage-restore" class="hidden" type="button"></button>
       <main id="log"></main>
       <div id="action-area"></div>
 
@@ -76,6 +89,7 @@ export class GameUI {
 
       <div id="overlay-shop" class="overlay hidden"><div id="shop-inner"></div></div>
       <div id="overlay-modal" class="overlay hidden"><div id="modal-inner"></div></div>
+      <div id="overlay-art" class="overlay hidden"></div>
       <div id="overlay-codex" class="overlay hidden"><div id="codex-inner"></div></div>
       <div id="overlay-settings" class="overlay hidden"><div id="settings-inner"></div></div>
     `
@@ -90,6 +104,7 @@ export class GameUI {
     el('log').classList.toggle('hidden', !inGame)
     el('action-area').classList.toggle('hidden', !inGame)
     el('monster-card').classList.add('hidden')
+    stage.setInGame(inGame)
   }
 
   // ═══ 标题屏 ═══
@@ -151,7 +166,7 @@ export class GameUI {
       const card = document.createElement('button')
       card.className = `cg-class ${this.currentClass === id ? 'sel' : ''} ${unlocked ? '' : 'locked'}`
       card.innerHTML = unlocked
-        ? `<div class="cg-class-emoji">${cls.emoji}</div>
+        ? `<div class="cg-class-emoji cg-portrait">${figureSvg(playerOfClass(id))}</div>
            <div class="cg-class-name">${cls.name}</div>
            <div class="cg-class-tag">${cls.tagline}</div>`
         : `<div class="cg-class-emoji">🔒</div>
@@ -233,6 +248,19 @@ export class GameUI {
     if (rr) rr.addEventListener('click', () => { sfx.diceRoll(); this.rolledAttrs = null; this.renderAttrs() })
   }
 
+  /** 开发用:直接跳进某个场景(无敌),方便对照画面与文案。入口见 main.ts 的 ?scene= */
+  devJump(sceneId: string, classId: ClassId): void {
+    const scene = SCENES[sceneId]
+    if (!scene) return
+    const run = GameEngine.createRun('预览', classId, classPresetAttrs(classId))
+    run.act = scene.act
+    run.player.maxHp = 9999
+    run.player.hp = 9999
+    run.currentSceneId = sceneId
+    run.sceneQueue = []
+    this.startRun(new GameEngine(run), false)
+  }
+
   private confirmChargen(): void {
     const name = (el('cg-name') as HTMLInputElement).value.trim() || '无名者'
     const attrs = this.currentAttrs ?? classPresetAttrs(this.currentClass)
@@ -247,6 +275,7 @@ export class GameUI {
     this.show('')
     el('log').innerHTML = ''
     el('action-area').innerHTML = ''
+    stage.configure({ enabled: this.meta.stageOn, collapsed: this.meta.stageCollapsed, cls: engine.run.player.classId })
     this.updateStatus()
     if (isResume) {
       this.appendLogLine(`**【上回说到】** ${engine.run.lastRecap || '你在迷城之中。'} —— 冒险继续。`, true)
@@ -275,6 +304,12 @@ export class GameUI {
   private async playEvent(ev: GameEvent, engine: GameEngine): Promise<InteractionInput | undefined> {
     switch (ev.kind) {
       case 'sceneTitle': {
+        const bg = (ev.bg as BgId | undefined) ?? 'corridor'
+        this.currentSceneId = ev.sceneId
+        this.inSceneText = true
+        this.sceneFocus = SCENE_ART[ev.sceneId]?.focus ?? null
+        stage.showScene(ev.sceneId, ev.title, bg)
+        this.repaint = () => stage.showScene(ev.sceneId, ev.title, bg)
         const header = el('scene-header')
         header.innerHTML = `<span class="act-badge">第${ev.act}幕 · ${ACT_NAMES[ev.act]}</span><span class="scene-name">${ev.title}</span>`
         header.classList.remove('hidden')
@@ -285,7 +320,25 @@ export class GameUI {
         return undefined
       }
       case 'narration': {
-        for (const para of ev.paras) await this.appendLogLine(para, ev.instant === true)
+        // 场景正文:逐段把画面聚焦到对应物件;其余旁白(选项结果/战斗)还原全景
+        const sceneText = this.inSceneText
+        this.inSceneText = false
+        const focus = sceneText ? this.sceneFocus : null
+        const seen = sceneText && this.meta.skipSeen && this.meta.seenScenes.includes(this.currentSceneId)
+        const instant = ev.instant === true || seen
+        if (!focus) stage.focus(null)
+        for (const [i, para] of ev.paras.entries()) {
+          stage.focus(focus && !instant ? focus[i] ?? null : null)
+          await this.appendLogLine(para, instant)
+        }
+        return undefined
+      }
+      case 'loot': {
+        this.appendLoot(ev.items)
+        return undefined
+      }
+      case 'monsterDown': {
+        stage.anim('monsterDown')
         return undefined
       }
       case 'fx': {
@@ -294,6 +347,10 @@ export class GameUI {
       }
       case 'check': {
         await playDiceRoll(ev.outcome)
+        if (ev.actor) {   // 攻击掷骰:没打中 → 守方闪避;打中 → 攻方先冲一下(受击动画随 damage 事件)
+          if (!ev.outcome.success) stage.anim(ev.actor === 'player' ? 'monsterDodge' : 'playerDodge')
+          else stage.anim(ev.actor === 'player' ? 'playerStrike' : 'monsterStrike')
+        }
         if (ev.outcome.critSuccess) { shake(2); void sdk.vibrate() }
         if (ev.outcome.critFail) { shake(3); void sdk.vibrate() }
         return undefined
@@ -306,6 +363,7 @@ export class GameUI {
         })
       }
       case 'choices': {
+        stage.focus(null)
         this.updateStatus()
         this.updateMonsterCard()
         return await this.renderChoices(ev.views)
@@ -325,6 +383,8 @@ export class GameUI {
         void card.offsetWidth
         card.classList.add('mc-enter')
         sfx.ember()
+        stage.showCombat(m.id, (['corridor', 'cavern', 'throne'] as BgId[])[m.act - 1] ?? 'corridor')
+        this.repaint = () => stage.showCombat(m.id, 'corridor')
         return undefined
       }
       case 'combatLog': {
@@ -333,10 +393,11 @@ export class GameUI {
           this.updateMonsterCard()
           return await this.renderCombatMenu()
         }
-        for (const line of ev.lines) await this.appendLogLine(line, false)
+        for (const line of ev.lines) await this.appendLogLine(line, false, 'combat')
         return undefined
       }
       case 'damage': {
+        stage.anim(ev.target === 'player' ? 'playerHit' : 'monsterHit')
         if (ev.target === 'player') {
           this.updateStatus()
           hurtVignette()
@@ -347,7 +408,7 @@ export class GameUI {
           sfx.hit()
         } else {
           this.updateMonsterCard()
-          particles.floatText(`-${ev.value}${ev.crit ? ' 会心!' : ''}`, ev.crit ? 'crit' : 'dmg', 'monster')
+          particles.floatText(`-${ev.value}${ev.crit ? ' 会心!' : ''}`, ev.crit ? 'crit' : 'dmg', 'monster', '#stage [data-fig="monster"]')
           if (ev.crit) { await hitStop(90); shake(2) }
           sfx.hit()
           await sleep(ev.crit ? 260 : 140)
@@ -355,6 +416,7 @@ export class GameUI {
         return undefined
       }
       case 'heal': {
+        if (ev.target === 'player') stage.anim('playerHeal')
         this.updateStatus()
         particles.floatText(`+${ev.value}`, 'heal', ev.target === 'player' ? 'player' : 'monster')
         particles.burst('heal')
@@ -364,7 +426,8 @@ export class GameUI {
       }
       case 'deathSave': {
         await playDeathSave(ev.roll, ev.successes, ev.failures, ev.note)
-        await this.appendLogLine(`死亡豁免:d20 → **${ev.roll}**(成功 ${Math.min(ev.successes, 3)}/3,失败 ${Math.min(ev.failures, 3)}/3)${ev.note ? ` — ${ev.note}` : ''}`, true)
+        stage.anim('playerHit')
+        await this.appendLogLine(`死亡豁免:d20 → **${ev.roll}**(成功 ${Math.min(ev.successes, 3)}/3,失败 ${Math.min(ev.failures, 3)}/3)${ev.note ? ` — ${ev.note}` : ''}`, true, 'combat')
         return undefined
       }
       case 'levelUp': {
@@ -441,10 +504,10 @@ export class GameUI {
   }
 
   // ═══ 日志 ═══
-  private async appendLogLine(text: string, instant: boolean): Promise<void> {
+  private async appendLogLine(text: string, instant: boolean, cls = ''): Promise<void> {
     const log = el('log')
     const p = document.createElement('p')
-    p.className = 'dm-line'
+    p.className = cls ? `dm-line ${cls}` : 'dm-line'
     log.appendChild(p)
     log.scrollTop = log.scrollHeight
     if (instant) {
@@ -459,6 +522,51 @@ export class GameUI {
     return text
       .replace(/\*\*(.+?)\*\*/g, '<b class="hl">$1</b>')
       .replace(/\*(.+?)\*/g, '<i class="lyric">$1</i>')
+  }
+
+  /** 结算图示:一行小图标说明「刚才实际发生了什么变化」,不用细读旁白也能看懂 */
+  private appendLoot(items: LootView[]): void {
+    const p = this.engine?.run.player
+    if (!p) return
+    const sgn = (v: number): string => (v > 0 ? `+${v}` : `${v}`)
+    const times = (it: LootView): string => (it.v && it.v > 1 ? ` ×${it.v}` : '')
+    const chip = (it: LootView): string => {
+      switch (it.t) {
+        case 'gold': return `<span class="loot ${it.v! > 0 ? 'gold' : 'loss'}">💰 ${sgn(it.v!)}</span>`
+        case 'hp': return `<span class="loot ${it.v! > 0 ? 'heal' : 'loss'}">❤️ ${sgn(it.v!)}</span>`
+        case 'inspiration': return `<span class="loot ${it.v! > 0 ? 'insp' : 'loss'}">🎲 灵感 ${sgn(it.v!)}</span>`
+        case 'fragment': return `<span class="loot frag">📜 英雄残章 +${it.v}</span>`
+        case 'xp': return `<span class="loot xp">✦ 经验 +${it.v}</span>`
+        case 'resource': {
+          const c = classDef(p.classId)
+          return `<span class="loot insp">${c.emoji} ${c.resourceName} +${it.v}</span>`
+        }
+        case 'companion': return `<span class="loot gain">🎻 班卓加入队伍</span>`
+        case 'item': {
+          const d = itemDef(it.id!)
+          return `<span class="loot gain">${d.emoji} ${this.escapeHtml(d.name)}${times(it)}</span>`
+        }
+        case 'lost': {
+          if (!it.id) return `<span class="loot loss">🌫 遗忘了一件装备</span>`
+          const d = itemDef(it.id)
+          return `<span class="loot loss">− ${d.emoji} ${this.escapeHtml(d.name)}${times(it)}</span>`
+        }
+      }
+    }
+    const log = el('log')
+    const row = document.createElement('div')
+    row.className = 'loot-row'
+    row.innerHTML = items.map(chip).join('')
+    log.appendChild(row)
+    log.scrollTop = log.scrollHeight
+  }
+
+  /** 在这个场景做出了选择 = 读过了(供「已读快进」) */
+  private markSeen(): void {
+    const id = this.currentSceneId
+    if (!id || this.meta.seenScenes.includes(id)) return
+    this.meta.seenScenes.push(id)
+    void this.saveMeta()
   }
 
   // ═══ 状态栏 ═══
@@ -524,6 +632,7 @@ export class GameUI {
         btn.addEventListener('click', () => {
           if (v.locked) { void sdk.toast(v.lockReason ?? '条件未满足', 'error'); return }
           sfx.click()
+          this.markSeen()
           area.innerHTML = ''
           resolve(v.id)
         })
@@ -693,11 +802,12 @@ export class GameUI {
   }
 
   // ═══ 结局 ═══
-  private async playEnding(ending: { name: string; lines: string[]; trueEnding?: boolean }, epitaph?: string): Promise<void> {
+  private async playEnding(ending: { id: string; name: string; lines: string[]; trueEnding?: boolean }, epitaph?: string): Promise<void> {
     this.show('screen-ending')
     const inner = el('ending-inner')
+    const art = stage.endingSvg(ending.id as EndingId)
     inner.className = `ending-inner ${ending.trueEnding ? 'true' : ''}`
-    inner.innerHTML = `<h2 class="ending-name">${ending.trueEnding ? '✦ 真结局 · ' : ''}${ending.name}</h2>`
+    inner.innerHTML = `${art ? `<div class="ending-art">${art}</div>` : ''}<h2 class="ending-name">${ending.trueEnding ? '✦ 真结局 · ' : ''}${ending.name}</h2>`
     particles.setEmberDensity(ending.trueEnding ? 0 : 0.5)
     for (const line of ending.lines) {
       const p = document.createElement('p')
@@ -882,13 +992,29 @@ export class GameUI {
         <div class="font-scale">
           ${[0, 1, 2].map((i) => `<button data-fs="${i}" class="${this.meta.fontScale === i ? 'sel' : ''}">${['小', '中', '大'][i]}</button>`).join('')}
         </div></div>
-      <p class="set-note">骰运迷城 v0.1.0 · 小黑盒工坊</p>
+      <div class="set-row"><span>场景画面<i>读文字时,上方配合显示插画与战斗画面</i></span>
+        <button class="btn-toggle" id="set-stage">${this.meta.stageOn ? '开' : '关'}</button></div>
+      <div class="set-row"><span>已读快进<i>读过的场景再次出现时,文字直接显示</i></span>
+        <button class="btn-toggle" id="set-seen">${this.meta.skipSeen ? '开' : '关'}</button></div>
+      <p class="set-note">骰运迷城 v0.2.0 · 小黑盒工坊</p>
       <button class="btn-primary" id="set-close">关闭</button>`
     el('overlay-settings').classList.remove('hidden')
     document.getElementById('set-sound')?.addEventListener('click', (e) => {
       this.meta.soundOn = !this.meta.soundOn
       sfx.setEnabled(this.meta.soundOn)
       ;(e.target as HTMLElement).textContent = this.meta.soundOn ? '开' : '关'
+      void this.saveMeta()
+    })
+    document.getElementById('set-stage')?.addEventListener('click', (e) => {
+      this.meta.stageOn = !this.meta.stageOn
+      stage.setEnabled(this.meta.stageOn)
+      ;(e.target as HTMLElement).textContent = this.meta.stageOn ? '开' : '关'
+      if (this.meta.stageOn) this.repaint?.()
+      void this.saveMeta()
+    })
+    document.getElementById('set-seen')?.addEventListener('click', (e) => {
+      this.meta.skipSeen = !this.meta.skipSeen
+      ;(e.target as HTMLElement).textContent = this.meta.skipSeen ? '开' : '关'
       void this.saveMeta()
     })
     inner.querySelectorAll('.font-scale button').forEach((b) => {

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>插画总览 - 骰运迷城</title>
+    <style>
+      body { overflow: auto; margin: 0; background: #0d0a08; color: #e8ddc8; font: 13px/1.5 system-ui, sans-serif; }
+      h2 { padding: 14px 16px 4px; color: #e8b45a; font-size: 15px; letter-spacing: .1em; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; padding: 8px 16px 24px; }
+      figure { margin: 0; }
+      .art { aspect-ratio: 400 / 170; overflow: hidden; border: 1px solid #3a2f22; border-radius: 8px; background: #000; }
+      .art svg { width: 100%; height: 100%; display: block; }
+      figcaption { padding: 4px 2px 0; color: #a3906f; font-size: 12px; }
+    </style>
+  </head>
+  <body class="gallery">
+    <h2>场景插画</h2><div class="grid" id="scenes"></div>
+    <h2>战斗画面</h2><div class="grid" id="combat"></div>
+    <h2>背景</h2><div class="grid" id="bgs"></div>
+    <h2>物件 / 人物</h2><div class="grid" id="props"></div>
+    <script type="module" src="/src/dev/gallery.ts"></script>
+  </body>
+</html>
