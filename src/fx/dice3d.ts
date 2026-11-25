@@ -65,6 +65,7 @@ export async function playDiceRoll(o: CheckOutcome, opts: { quick?: boolean } = 
   const isReduced = reduced()
   const spinMs = isReduced ? 240 : (opts.quick ? 620 : 1050)
   sfx.diceRoll()
+  try {
   const start = performance.now()
   await new Promise<void>((resolve) => {
     const cycle = () => {
@@ -100,7 +101,10 @@ export async function playDiceRoll(o: CheckOutcome, opts: { quick?: boolean } = 
   }
   breakdown.textContent = fmtBreakdown(o)
   await sleep(isReduced ? 200 : (o.roll.nat === 20 || o.roll.nat === 1) ? 1050 : 680)
-  el.classList.remove('on')
+  } finally {
+    // 任何异常/中断都必须摘掉遮罩,否则全屏遮罩会让玩家以为卡死
+    el.classList.remove('on')
+  }
   await sleep(120)
 }
 

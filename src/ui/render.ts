@@ -401,7 +401,8 @@ export class GameUI {
         return undefined
       }
       case 'adOffer': {
-        return await this.adOfferModal(ev.offer)
+        // 点位直接画在行动区(与选项同一位置),避免弹窗被骰子遮罩盖住或被当成「卡住」
+        return await this.adOfferInline(ev.offer)
       }
       case 'fx': {
         this.playFx(ev.fx)
@@ -811,48 +812,56 @@ export class GameUI {
     this.updateStatus()
   }
 
-  /**
-   * 激励视频点位弹窗。只有 sdk 确认「广告完成」才回 true,引擎才会发奖;
-   * 失败可以重试(2005 进行中除外由平台自己拦),放弃不发奖。
-   */
-  private adOfferModal(offer: AdOffer): Promise<boolean> {
-    const copy: Record<AdOffer['kind'], { title: string; body: string; source: string }> = {
-      revive: { title: '💀 你倒下了', body: '看一段视频,把命拽回来——**原地复活**,回复一半生命,战斗继续。每局一次。', source: 'revive' },
-      reroll: { title: '🎲 差一点', body: `${offer.kind === 'reroll' ? offer.label : ''}\n看一段视频,再掷一次骰子。每局两次。`, source: 'reroll' },
-      doubleGold: { title: '💰 战利品', body: `看一段视频,这一场的 ${offer.kind === 'doubleGold' ? offer.gold : 0} 金币**翻倍**。每局两次。`, source: 'doubleGold' },
+  /** 激励视频点位的文案 */
+  private adCopy(offer: AdOffer): { title: string; body: string; reward: string; source: string } {
+    switch (offer.kind) {
+      case 'revive':
+        return { title: '💀 你倒下了', body: '看视频原地复活,回复一半生命,战斗继续(每局一次)', reward: '复活', source: 'revive' }
+      case 'reroll':
+        return { title: '🎲 检定失败', body: offer.label, reward: '重骰一次(每局两次)', source: 'reroll' }
+      case 'doubleGold':
+        return { title: '💰 战利品', body: `看视频,这一场的 ${offer.gold} 金币翻倍(每局两次)`, reward: `金币 +${offer.gold}`, source: 'doubleGold' }
     }
-    const c = copy[offer.kind]
+  }
+
+  /**
+   * 激励视频点位:直接渲染成行动区的两个按钮,和普通选项完全同一位置。
+   * 只有广告完成才回 true;失败提示后可重试;放弃不发奖。
+   */
+  private adOfferInline(offer: AdOffer): Promise<boolean> {
+    const c = this.adCopy(offer)
     return new Promise((resolve) => {
-      const overlay = el('overlay-modal')
-      const inner = el('modal-inner')
-      inner.innerHTML = `<h3>${c.title}</h3><p class="modal-body">${c.body.replace(/\*\*(.+?)\*\*/g, '<b class="hl">$1</b>')}</p>
-        <div class="modal-btns">
-          <button class="btn-primary" id="ad-watch">📺 看视频</button>
-          <button class="btn-ghost" id="ad-skip">放弃</button>
-        </div>
-        <p class="ad-note">广告由平台提供 · 看完才发奖</p>`
-      overlay.classList.remove('hidden')
+      const area = el('action-area')
+      area.innerHTML = ''
+      const tip = document.createElement('div')
+      tip.className = 'ad-tip'
+      tip.innerHTML = `<b>${c.title}</b> ${this.escapeHtml(c.body)}`
+      area.appendChild(tip)
+
+      const watch = document.createElement('button')
+      watch.className = 'choice-btn ad-offer'
+      watch.innerHTML = `<span class="choice-text">📺 看视频 · ${this.escapeHtml(c.reward)}</span>
+        <span class="choice-hint">看完才发奖 · 广告由平台提供</span>`
+      const skip = document.createElement('button')
+      skip.className = 'choice-btn'
+      skip.innerHTML = '<span class="choice-text">不看,继续</span>'
+
       let busy = false
-      const close = (v: boolean): void => {
-        overlay.classList.add('hidden')
-        overlay.replaceChildren()
-        resolve(v)
-      }
-      const watch = document.getElementById('ad-watch') as HTMLButtonElement | null
-      const skip = document.getElementById('ad-skip') as HTMLButtonElement | null
-      skip?.addEventListener('click', () => { sfx.click(); close(false) })
-      watch?.addEventListener('click', async () => {
+      const finish = (v: boolean): void => { area.innerHTML = ''; resolve(v) }
+      skip.addEventListener('click', () => { if (!busy) { sfx.click(); finish(false) } })
+      watch.addEventListener('click', async () => {
         if (busy) return
         busy = true
         sfx.click()
-        const label = watch.textContent
-        watch.textContent = '广告加载中…'
+        const label = watch.innerHTML
+        watch.innerHTML = '<span class="choice-text">广告加载中……</span>'
         const res = await sdk.showRewardedVideo(c.source)
-        if (res.ok) { close(true); return }
+        if (res.ok) { finish(true); return }
         busy = false
-        watch.textContent = label ?? '📺 看视频'
+        watch.innerHTML = label
         void sdk.toast(res.message ?? '观看视频失败,请重试', 'error')
       })
+      area.append(watch, skip)
     })
   }
 
