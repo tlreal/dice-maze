@@ -27,6 +27,15 @@ export interface LootView {
   id?: string           // item / lost:物品 id;lost 不带 id = 烬疫吃掉了装备(想不起是什么)
 }
 
+/** 激励视频点位。UI 播放广告,只有拿到「完成」才回 true,引擎才发奖 */
+export type AdOffer =
+  | { kind: 'revive' }
+  | { kind: 'reroll'; label: string }
+  | { kind: 'doubleGold'; gold: number }
+
+/** 各点位的每局上限 */
+export const AD_LIMITS = { reroll: 2, doubleGold: 2, revive: 1 } as const
+
 export type GameEvent =
   | { kind: 'narration'; paras: string[]; instant?: boolean }
   | { kind: 'sceneTitle'; sceneId: string; title: string; act: 1 | 2 | 3; bg?: string }
@@ -35,6 +44,7 @@ export type GameEvent =
   | { kind: 'check'; outcome: CheckOutcome; actor?: 'player' | 'monster' }   // actor 仅攻击掷骰带:驱动画面里的冲撞/闪避
   | { kind: 'loot'; items: LootView[] }
   | { kind: 'monsterDown' }
+  | { kind: 'adOffer'; offer: AdOffer }
   | { kind: 'askInspiration'; label: string }
   | { kind: 'choices'; views: ChoiceView[] }
   | { kind: 'combatStart'; monster: MonsterDef; firstStrike?: boolean }
@@ -111,6 +121,9 @@ export class GameEngine {
       combat: null,
       startedAt: Date.now(),
       lastRecap: '',
+      adRerolls: 0,
+      adGoldDoubles: 0,
+      adReviveUsed: false,
     }
     GameEngine.buildActQueue(run)
     return run
@@ -294,6 +307,18 @@ export class GameEngine {
         if (use === true) {
           p.inspiration -= 1
           co = resolveCheck(p, { skill: choice.check.skill, dc: choice.check.dc, advantage: true })
+          yield { kind: 'check', outcome: co }
+        }
+      }
+      // 激励视频重掷(每局有限次;不含优势,只重来一次)
+      if (!co.success && this.run.adRerolls < AD_LIMITS.reroll) {
+        const use = yield {
+          kind: 'adOffer',
+          offer: { kind: 'reroll', label: `${SKILL_NAMES[choice.check.skill]}检定失败。看一段视频,重骰一次？` },
+        }
+        if (use === true) {
+          this.run.adRerolls += 1
+          co = resolveCheck(p, { skill: choice.check.skill, dc: choice.check.dc, advantage: false })
           yield { kind: 'check', outcome: co }
         }
       }
@@ -869,6 +894,18 @@ export class GameEngine {
         return
       }
       if (res.dead) {
+        // 激励视频:阵亡复活(每局 1 次,回复一半生命,继续这场战斗)
+        if (!this.run.adReviveUsed) {
+          const take = yield { kind: 'adOffer', offer: { kind: 'revive' } }
+          if (take === true) {
+            this.run.adReviveUsed = true
+            p.hp = Math.max(1, Math.floor(p.maxHp * 0.5))
+            run.combat!.deathSaves = null
+            yield { kind: 'combatLog', lines: ['📺 你被拽了回来——心脏重新跳了一下。**复活!**'] }
+            yield { kind: 'heal', target: 'player', value: p.hp }
+            return
+          }
+        }
         yield* this.endRun('end_death')
         return
       }
@@ -889,6 +926,16 @@ export class GameEngine {
       lines: [`🏆 ${m.name}倒下了!化作灰烬前,它留下了 ${gold} 金币。(击杀+1,经验+${m.xp})`],
     }
     yield { kind: 'loot', items: [{ t: 'gold', v: gold }, { t: 'xp', v: m.xp }] }
+    // 激励视频:战后金币翻倍(每局有限次)
+    if (run.adGoldDoubles < AD_LIMITS.doubleGold) {
+      const take = yield { kind: 'adOffer', offer: { kind: 'doubleGold', gold } }
+      if (take === true) {
+        run.adGoldDoubles += 1
+        p.gold += gold
+        yield { kind: 'combatLog', lines: [`📺 看完了广告——战利品加倍,再得 ${gold} 金币!`] }
+        yield { kind: 'loot', items: [{ t: 'gold', v: gold }] }
+      }
+    }
     yield { kind: 'fx', fx: 'gold' }
     run.combat = null
     // 升级?

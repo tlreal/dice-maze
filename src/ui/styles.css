@@ -42,7 +42,7 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--sat, env(safe-area-inset-top));   /* Lamps 状态栏安全区:平台脚本会写入 --sat */
 }
 .hidden { display: none !important; }
 
@@ -653,3 +653,38 @@ body {
 .cg-class.sel .cg-portrait svg { filter: drop-shadow(0 0 5px rgba(255, 210, 120, .55)); }
 .set-row > span { display: flex; flex-direction: column; }
 .set-row > span i { font-style: normal; font-size: .72em; color: var(--text-dim); max-width: 220px; }
+
+/* ─── 预设名字(Lamps 禁止自由输入) ─── */
+.cg-names { display: flex; flex-wrap: wrap; gap: 8px; }
+.cg-name-chip {
+  background: var(--panel); border: 1px solid var(--line); color: var(--text);
+  border-radius: 999px; padding: 7px 16px; font-size: .92em; cursor: pointer;
+  transition: border-color .15s ease, transform .12s ease;
+}
+.cg-name-chip:active { transform: scale(.96); }
+.cg-name-chip.sel { border-color: var(--gold); color: var(--gold-hi); box-shadow: 0 0 0 1px var(--gold); }
+.cg-name-chip.dice { border-style: dashed; color: var(--text-dim); }
+
+/* ─── 云存档告警(标题页) ─── */
+.cloud-warn {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 4px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #4a2018; background: #1e0e0c; color: #ff9a80; font-size: .82em;
+}
+.cloud-warn i { display: block; font-style: normal; color: var(--text-dim); font-size: .92em; }
+.cloud-warn-btns { display: flex; gap: 8px; }
+.cloud-warn-btns button { flex: 1; padding: 7px 10px; font-size: .95em; }
+
+/* ─── 激励视频弹窗 ─── */
+.ad-note { text-align: center; font-size: .72em; color: var(--text-dim); }
+
+/* ─── Lamps 内自绘 toast ─── */
+#lamps-toast {
+  position: fixed; left: 50%; bottom: 92px; z-index: 90;
+  transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
+  max-width: 82vw; padding: 9px 16px; border-radius: 999px;
+  background: rgba(30, 23, 16, .96); border: 1px solid #5a4520; color: var(--gold-hi);
+  font-size: .84em; text-align: center; transition: opacity .18s ease, transform .18s ease;
+}
+#lamps-toast.show { opacity: 1; transform: translate(-50%, 0); }
+#lamps-toast.err { border-color: #4a2018; color: #ff9a80; }

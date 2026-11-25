@@ -31,7 +31,8 @@ async function boot(): Promise<void> {
   // 粒子层
   particles.mount()
 
-  // 读取持久化设置
+  // 先读云存档(Lamps 内是正式档),再读跨局设置
+  await sdk.loadCloudProgress()
   const meta = { ...DEFAULT_META, ...((await sdk.kvGet<Partial<MetaState>>('meta_v1')) ?? {}) } as MetaState
   sfx.setEnabled(meta.soundOn)
 
@@ -54,6 +55,10 @@ async function boot(): Promise<void> {
     const cls = q.get('cls') as ClassId | null
     if (sceneId && SCENES[sceneId]) ui.devJump(sceneId, cls && classes.includes(cls) ? cls : 'fighter')
   }
+
+  // 状态栏安全区:平台脚本已自带 env() 兜底,这里再向父页面要一次精确高度
+  void sdk.applySafeTop()
+  window.addEventListener('orientationchange', () => { void sdk.applySafeTop() })
 
   // 导航栏深色前景(模板同款逻辑)
   try {

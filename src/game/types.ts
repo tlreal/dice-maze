@@ -337,6 +337,10 @@ export interface RunState {
   pendingFeatChoices?: string[]  // 升级后待选专长
   pendingEquipId?: string        // 待定装备决策
   bardicActive?: boolean         // 吟游诗人激励骰生效中（本场战斗）
+  // 激励视频点位计数（随存档持久化，跨刷新保持一致）
+  adRerolls: number              // 已用「看视频重掷」次数（每局上限 2）
+  adGoldDoubles: number          // 已用「看视频金币翻倍」次数（每局上限 2）
+  adReviveUsed: boolean          // 本局是否已用过「看视频复活」（每局 1 次）
 }
 
 export type ScreenId =

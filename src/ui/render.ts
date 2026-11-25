@@ -1,5 +1,5 @@
 // ─── UI 渲染层:装配界面 + 播放引擎演出事件 ──────────────────────────
-import type { InteractionInput, GameEvent, ChoiceView, LootView } from '../game/engine'
+import type { InteractionInput, GameEvent, ChoiceView, LootView, AdOffer } from '../game/engine'
 import { GameEngine } from '../game/engine'
 import type { ClassId, MetaState, RunState, LuckGrade, EndingId } from '../game/types'
 import { ATTR_NAMES } from '../game/types'
@@ -13,7 +13,7 @@ import { particles } from '../fx/particles'
 import { flash as _flash, shake, hurtVignette, hitStop, sleep } from '../fx/screenfx'
 void _flash
 import { sfx } from '../fx/audio'
-import { sdk } from '../sdk'
+import { inLamps, sdk } from '../sdk'
 import { stage } from './stage'
 import { SCENE_ART } from '../art/sceneArt'
 import { figureSvg } from '../art/render'
@@ -21,6 +21,9 @@ import { playerOfClass } from '../art/figures'
 import type { BgId } from '../art/backdrops'
 
 const ACT_NAMES: Record<number, string> = { 1: '烬痕镇与迷城之门', 2: '幽暗深处', 3: '烬王殿' }
+
+/** 预设名字:沿用剧情里石碑上的名字,玩家只能从这些里选 */
+const NAMES = ['阿岚', '石头', '小满', '林秋', '白鸦', '陈九', '阿禾', '月牙'] as const
 
 const el = (id: string): HTMLElement => {
   const e = document.getElementById(id)
@@ -33,6 +36,7 @@ export class GameUI {
   meta: MetaState
   private currentAttrs: RunState['player']['attrs'] | null = null
   private currentClass: ClassId = 'fighter'
+  private currentName: string = NAMES[0]      // 预设名字(平台禁止自由输入)
   private attrMode: 'preset' | 'array' | 'roll' = 'preset'
   private rolledAttrs: number[] | null = null
   private currentSceneId = ''        // 供「已读快进」记账
@@ -70,7 +74,8 @@ export class GameUI {
       <section id="screen-chargen" class="screen hidden">
         <header class="cg-head"><button class="btn-ghost" id="cg-back">← 返回</button><h2>创建角色</h2><span></span></header>
         <div class="cg-body">
-          <label class="cg-name">冒险者姓名 <input id="cg-name" maxlength="8" placeholder="无名者" value=""></label>
+          <div class="cg-sec-title">选择名字</div>
+          <div class="cg-names" id="cg-names"></div>
           <div class="cg-sec-title">选择职业</div>
           <div class="cg-classes" id="cg-classes"></div>
           <div class="cg-sec-title">属性生成方式</div>
@@ -128,6 +133,34 @@ export class GameUI {
     mk('🏆 排行榜', 'btn-ghost', () => void this.showLeaderboard())
     mk('📚 图鉴', 'btn-ghost', () => this.showCodex())
     mk('⚙️ 设置', 'btn-ghost', () => this.showSettings())
+    // 云存档读取失败:拦住续玩,让玩家明确选择重试或仅用本机
+    if (sdk.cloudState === 'error') {
+      const warn = document.createElement('div')
+      warn.className = 'cloud-warn'
+      warn.innerHTML = `☁️ 云存档读取失败<i>${this.escapeHtml(sdk.cloudMessage || '请检查网络')}</i>`
+      const row = document.createElement('div')
+      row.className = 'cloud-warn-btns'
+      const retry = document.createElement('button')
+      retry.className = 'btn-secondary'
+      retry.textContent = '重试'
+      retry.addEventListener('click', async () => {
+        sfx.click()
+        warn.textContent = '正在重新读取云存档……'
+        await sdk.loadCloudProgress()
+        await this.showTitle()
+      })
+      const local = document.createElement('button')
+      local.className = 'btn-ghost'
+      local.textContent = '仅用本机存档'
+      local.addEventListener('click', () => {
+        sfx.click()
+        sdk.useLocalOnly()
+        void this.showTitle()
+      })
+      row.append(retry, local)
+      warn.appendChild(row)
+      menu.appendChild(warn)
+    }
     const nick = await sdk.getNickname()
     el('title-stats').textContent =
       `${nick ? `${nick} · ` : ''}冒险 ${this.meta.runsPlayed} 次 · 最佳 ${this.meta.bestScore} 分`
@@ -150,10 +183,36 @@ export class GameUI {
   async showChargen(): Promise<void> {
     this.show('screen-chargen')
     this.renderClassGrid()
+    this.renderNames()
     this.renderAttrModes()
     this.renderAttrs()
     el('cg-back').onclick = () => { sfx.click(); void this.showTitle() }
     el('cg-start').onclick = () => this.confirmChargen()
+  }
+
+  private renderNames(): void {
+    const wrap = el('cg-names')
+    wrap.innerHTML = ''
+    for (const name of NAMES) {
+      const b = document.createElement('button')
+      b.className = `cg-name-chip ${this.currentName === name ? 'sel' : ''}`
+      b.textContent = name
+      b.addEventListener('click', () => {
+        sfx.click()
+        this.currentName = name
+        this.renderNames()
+      })
+      wrap.appendChild(b)
+    }
+    const rnd = document.createElement('button')
+    rnd.className = 'cg-name-chip dice'
+    rnd.textContent = '🎲 换一个'
+    rnd.addEventListener('click', () => {
+      sfx.click()
+      this.currentName = NAMES[Math.floor(Math.random() * NAMES.length)]!
+      this.renderNames()
+    })
+    wrap.appendChild(rnd)
   }
 
   private renderClassGrid(): void {
@@ -262,7 +321,7 @@ export class GameUI {
   }
 
   private confirmChargen(): void {
-    const name = (el('cg-name') as HTMLInputElement).value.trim() || '无名者'
+    const name = this.currentName
     const attrs = this.currentAttrs ?? classPresetAttrs(this.currentClass)
     const run = GameEngine.createRun(name, this.currentClass, attrs as RunState['player']['attrs'])
     this.startRun(new GameEngine(run), false)
@@ -340,6 +399,9 @@ export class GameUI {
       case 'monsterDown': {
         stage.anim('monsterDown')
         return undefined
+      }
+      case 'adOffer': {
+        return await this.adOfferModal(ev.offer)
       }
       case 'fx': {
         this.playFx(ev.fx)
@@ -749,6 +811,51 @@ export class GameUI {
     this.updateStatus()
   }
 
+  /**
+   * 激励视频点位弹窗。只有 sdk 确认「广告完成」才回 true,引擎才会发奖;
+   * 失败可以重试(2005 进行中除外由平台自己拦),放弃不发奖。
+   */
+  private adOfferModal(offer: AdOffer): Promise<boolean> {
+    const copy: Record<AdOffer['kind'], { title: string; body: string; source: string }> = {
+      revive: { title: '💀 你倒下了', body: '看一段视频,把命拽回来——**原地复活**,回复一半生命,战斗继续。每局一次。', source: 'revive' },
+      reroll: { title: '🎲 差一点', body: `${offer.kind === 'reroll' ? offer.label : ''}\n看一段视频,再掷一次骰子。每局两次。`, source: 'reroll' },
+      doubleGold: { title: '💰 战利品', body: `看一段视频,这一场的 ${offer.kind === 'doubleGold' ? offer.gold : 0} 金币**翻倍**。每局两次。`, source: 'doubleGold' },
+    }
+    const c = copy[offer.kind]
+    return new Promise((resolve) => {
+      const overlay = el('overlay-modal')
+      const inner = el('modal-inner')
+      inner.innerHTML = `<h3>${c.title}</h3><p class="modal-body">${c.body.replace(/\*\*(.+?)\*\*/g, '<b class="hl">$1</b>')}</p>
+        <div class="modal-btns">
+          <button class="btn-primary" id="ad-watch">📺 看视频</button>
+          <button class="btn-ghost" id="ad-skip">放弃</button>
+        </div>
+        <p class="ad-note">广告由平台提供 · 看完才发奖</p>`
+      overlay.classList.remove('hidden')
+      let busy = false
+      const close = (v: boolean): void => {
+        overlay.classList.add('hidden')
+        overlay.replaceChildren()
+        resolve(v)
+      }
+      const watch = document.getElementById('ad-watch') as HTMLButtonElement | null
+      const skip = document.getElementById('ad-skip') as HTMLButtonElement | null
+      skip?.addEventListener('click', () => { sfx.click(); close(false) })
+      watch?.addEventListener('click', async () => {
+        if (busy) return
+        busy = true
+        sfx.click()
+        const label = watch.textContent
+        watch.textContent = '广告加载中…'
+        const res = await sdk.showRewardedVideo(c.source)
+        if (res.ok) { close(true); return }
+        busy = false
+        watch.textContent = label ?? '📺 看视频'
+        void sdk.toast(res.message ?? '观看视频失败,请重试', 'error')
+      })
+    })
+  }
+
   // ═══ 通用弹窗 ═══
   private modal(opts: {
     title: string
@@ -879,7 +986,7 @@ export class GameUI {
       <div class="score-btns">
         <button class="btn-primary" id="score-home">返回大厅</button>
         <button class="btn-secondary" id="score-board">🏆 排行榜</button>
-        <button class="btn-secondary" id="score-share">📸 分享战绩</button>
+        ${inLamps() ? '' : '<button class="btn-secondary" id="score-share">📸 分享战绩</button>'}
       </div>`
     // 数字滚动(setTimeout 驱动,后台标签也能完成;隐藏时直接落定)
     const counters = inner.querySelectorAll<HTMLElement>('[data-count]')
@@ -910,7 +1017,7 @@ export class GameUI {
     if (sub) {
       if (submitted) {
         sub.innerHTML = submitted.ranked
-          ? `✅ 已上传 · 当前排名 <b>第 ${submitted.rank} 名</b>`
+          ? (submitted.rank > 0 ? `✅ 已上榜 · 当前排名 <b>第 ${submitted.rank} 名</b>` : '✅ 成绩已上榜')
           : '✅ 成绩已保存(超出榜单展示范围)'
       } else {
         sub.textContent = '📒 未登录或网络不可用,成绩已保存在本地'
@@ -933,21 +1040,30 @@ export class GameUI {
     document.getElementById('board-back')?.addEventListener('click', () => { sfx.click(); void this.showTitle() })
     const page = await sdk.fetchLeaderboard()
     if (!page || page.entries.length === 0) {
-      inner.querySelector('.board-loading')!.innerHTML = '榜单空空如也——<br>第一个把名字刻上去的人,就是你。<br><i>(需在小黑盒 APP 内登录并联网)</i>'
+      inner.querySelector('.board-loading')!.innerHTML = inLamps()
+        ? '榜单空空如也——<br>第一个把名字刻上去的人,就是你。'
+        : '榜单空空如也——<br>第一个把名字刻上去的人,就是你。<br><i>(需在小黑盒 APP 内登录并联网)</i>'
       return
     }
     const rows = page.entries.map((e) => {
       const extra = e.extra as { ending?: string; cls?: string; luck?: string }
       const tag = [extra?.cls, extra?.ending?.replace('·真结局', ''), extra?.luck ? `骰运${extra.luck}` : '']
         .filter(Boolean).join(' · ')
+      // 昵称来自平台,必须转义后再进 innerHTML
+      const name = e.nickname ? this.escapeHtml(e.nickname) : this.maskId(e.appUserId)
       return `<div class="board-row">
         <span class="br-rank ${e.rank <= 3 ? `top${e.rank}` : ''}">${e.rank}</span>
-        <span class="br-name">${this.maskId(e.appUserId)}</span>
-        <span class="br-tag">${tag}</span>
+        <span class="br-name">${name}</span>
+        <span class="br-tag">${this.escapeHtml(tag)}</span>
         <b class="br-score">${e.score}</b>
       </div>`
     }).join('')
-    inner.innerHTML = `<h2>🏆 骰运者榜</h2><div class="board-rows">${rows}</div><p class="board-foot">榜单缓存约 5 分钟 · 你的最好成绩:${this.meta.bestScore}</p><button class="btn-ghost" id="board-back">← 返回</button>`
+    const total = page.totalCount ?? page.entries.length
+    const mine = page.myRecord ? ` · 我的排名:第 ${page.myRecord.rank} 名(${page.myRecord.score} 分)` : ''
+    const foot = inLamps()
+      ? `共 ${total} 人上榜${mine} · 你的最好成绩:${this.meta.bestScore}`
+      : `榜单缓存约 5 分钟 · 你的最好成绩:${this.meta.bestScore}`
+    inner.innerHTML = `<h2>🏆 骰运者榜</h2><div class="board-rows">${rows}</div><p class="board-foot">${foot}</p><button class="btn-ghost" id="board-back">← 返回</button>`
     document.getElementById('board-back')?.addEventListener('click', () => { sfx.click(); void this.showTitle() })
   }
 
