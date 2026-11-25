@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>封面渲染 · 骰运迷城</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #0d0a08; overflow: hidden; }
+      #cover { position: relative; width: 1600px; height: 900px; overflow: hidden; background: #0d0a08; }
+      #cover .art { position: absolute; inset: 0; }
+      #cover .art svg { width: 100%; height: 100%; display: block; }
+      #cover .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,3,2,.94) 0%, rgba(6,3,2,.78) 34%, rgba(6,3,2,.18) 62%, rgba(6,3,2,0) 100%); }
+      #cover .vign { position: absolute; inset: 0; background: radial-gradient(78% 70% at 42% 46%, transparent 42%, rgba(0,0,0,.62) 100%); }
+      #cover .copy { position: absolute; left: 96px; top: 50%; transform: translateY(-50%); width: 900px; }
+      .mark { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
+      .d20 {
+        width: 74px; height: 74px; display: flex; align-items: center; justify-content: center;
+        font: 900 28px/1 'Bahnschrift', 'Segoe UI', sans-serif; color: #2a1a06;
+        background: conic-gradient(from 30deg, #ffd98a, #e8b45a, #b97f2a, #ffd98a);
+        clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+        text-shadow: 0 1px 0 rgba(255,255,255,.35);
+      }
+      .mark .kicker { font: 500 26px/1.3 'Microsoft YaHei', sans-serif; color: #a3906f; letter-spacing: .22em; }
+      h1 {
+        margin: 0; font: 800 150px/1.04 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+        letter-spacing: .08em; color: #f3e6c8;
+        text-shadow: 0 6px 30px rgba(0,0,0,.75);
+      }
+      h1 em {
+        font-style: normal;
+        background: linear-gradient(180deg, #ffe7b0 6%, #e8b45a 58%, #b97f2a 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .rule { width: 168px; height: 3px; margin: 34px 0 0; background: linear-gradient(90deg, #e8b45a, rgba(232,180,90,0)); }
+      .title-glow {
+        position: absolute; left: -60px; top: 236px; width: 1120px; height: 452px;
+        background: radial-gradient(56% 60% at 38% 50%, rgba(4,2,1,.74), rgba(4,2,1,.34) 56%, rgba(4,2,1,0) 78%);
+      }
+      .foot { position: absolute; left: 96px; bottom: 56px; font: 500 22px/1 'Microsoft YaHei', sans-serif; color: #8d7a5c; letter-spacing: .14em; }
+      .badge {
+        position: absolute; right: 64px; top: 56px; padding: 14px 22px; border-radius: 10px;
+        background: rgba(20,14,9,.8); border: 1px solid rgba(232,180,90,.45);
+        font: 700 24px/1 'Microsoft YaHei', sans-serif; color: #ffd98a; letter-spacing: .08em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cover">
+      <div class="art" id="art"></div>
+      <div class="shade"></div>
+      <div class="vign"></div>
+      <div class="title-glow"></div>
+      <div class="copy">
+        <div class="mark"><div class="d20">20</div><div class="kicker">DND 跑团肉鸽</div></div>
+        <h1>骰运<em>迷城</em></h1>
+        <div class="rule"></div>
+      </div>
+      <div class="badge" id="badge">v0.2 新增插画</div>
+      <div class="foot">小黑盒小程序工坊 · 搜「骰运迷城」</div>
+    </div>
+    <script type="module" src="/src/dev/cover.ts"></script>
+  </body>
+</html>

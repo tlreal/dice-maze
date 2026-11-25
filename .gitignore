@@ -12,3 +12,13 @@ screenshots/
 .lamps/auth-key
 # Lamps 构建产物
 lamps-dist/
+# Python 缓存
+__pycache__/
+
+# 图标中间产物(只保留最终两版)
+assets/icon-[abc].png
+assets/icon-3d-*.png
+assets/user-icon-*-256.png
+assets/user-icon-*-512.png
+assets/user-icon-plain.png
+assets/user-icon-titled.png
