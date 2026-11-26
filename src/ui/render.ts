@@ -1051,7 +1051,7 @@ export class GameUI {
     if (!page || page.entries.length === 0) {
       inner.querySelector('.board-loading')!.innerHTML = inLamps()
         ? '榜单空空如也——<br>第一个把名字刻上去的人,就是你。'
-        : '榜单空空如也——<br>第一个把名字刻上去的人,就是你。<br><i>(需在小黑盒 APP 内登录并联网)</i>'
+        : '榜单空空如也——<br>第一个把名字刻上去的人,就是你。<br><i>(联网后即可上榜)</i>'
       return
     }
     const rows = page.entries.map((e) => {
@@ -1121,7 +1121,7 @@ export class GameUI {
         <button class="btn-toggle" id="set-stage">${this.meta.stageOn ? '开' : '关'}</button></div>
       <div class="set-row"><span>已读快进<i>读过的场景再次出现时,文字直接显示</i></span>
         <button class="btn-toggle" id="set-seen">${this.meta.skipSeen ? '开' : '关'}</button></div>
-      <p class="set-note">骰运迷城 v0.2.0 · 小黑盒工坊</p>
+      <p class="set-note">骰运迷城 v0.3.0</p>
       <button class="btn-primary" id="set-close">关闭</button>`
     el('overlay-settings').classList.remove('hidden')
     document.getElementById('set-sound')?.addEventListener('click', (e) => {

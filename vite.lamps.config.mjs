@@ -34,6 +34,20 @@ function injectLampsPlatform() {
   }
 }
 
+/** 把「站内昵称」模块整体换成 stub,确保产物里没有任何站外标识 */
+function stubHeyboxUser() {
+  return {
+    name: 'lamps-stub-heybox-user',
+    enforce: 'pre',
+    resolveId(id) {
+      if (id.endsWith('/heybox-user') || id.endsWith('heybox-user.ts')) {
+        return resolve(root, 'src/platform/heybox-user.stub.ts')
+      }
+      return null
+    },
+  }
+}
+
 /** 构建后打印关键文件大小,便于确认单文件不超限 */
 function reportSizes() {
   return {
@@ -66,5 +80,5 @@ export default defineConfig({
   define: {
     __LAMPS_BUILD__: 'true',
   },
-  plugins: [injectLampsPlatform(), reportSizes()],
+  plugins: [stubHeyboxUser(), injectLampsPlatform(), reportSizes()],
 })

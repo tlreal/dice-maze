@@ -6,6 +6,7 @@
 // - 在小黑盒内:沿用原来的 hb-sdk。
 // - 纯浏览器:本机缓存照常可玩。
 import hbSDK, { onHandshakeStateChange, type MiniProgramSDKHandshakeState } from '@heybox/hb-sdk'
+import { heyboxNickname } from './platform/heybox-user'
 
 export const LEADERBOARD_KEY = 'dice_maze_score_v1'
 
@@ -272,13 +273,7 @@ class SdkBridge {
   // ═══ 用户 ═══
   async getNickname(): Promise<string | null> {
     if (inLamps()) return null   // Lamps 只通过榜单返回昵称,不额外取玩家资料
-    try {
-      const info = await this.withTimeout(hbSDK.user.getInfo(), 2500)
-      if (info.isHeyboxAppLoggedIn && info.userInfo?.profile?.nickname) {
-        return info.userInfo.profile.nickname
-      }
-      return null
-    } catch { return null }
+    return heyboxNickname()
   }
 
   // ═══ 激励视频 ═══
