@@ -3,7 +3,7 @@
 // 这里提供同名导出,避免其它模块的静态 import 报错;所有调用都返回失败或空操作。
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const reject = (): Promise<never> => Promise.reject(new Error('HEYBOX_SDK_DISABLED'))
+const reject = (): Promise<never> => Promise.reject(new Error('PLATFORM_DISABLED'))
 const noop = (): Promise<Record<string, unknown>> => Promise.resolve({})
 
 const hbSDKStub: any = {

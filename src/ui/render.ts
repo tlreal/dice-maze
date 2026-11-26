@@ -401,6 +401,8 @@ export class GameUI {
         return undefined
       }
       case 'adOffer': {
+        // 只有平台支持激励视频才展示点位;小黑盒版无广告能力,直接当作「不领取」继续
+        if (!sdk.adsAvailable) return false
         // 点位直接画在行动区(与选项同一位置),避免弹窗被骰子遮罩盖住或被当成「卡住」
         return await this.adOfferInline(ev.offer)
       }
